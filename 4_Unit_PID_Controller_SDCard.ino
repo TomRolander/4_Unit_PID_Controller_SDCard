@@ -87,6 +87,7 @@ int  iToggle = 0;
 #define CoolerUnit4 9
 
 void setup() {
+//  Wire.begin();
   Serial.begin(9600);
   Serial.println(F("Serial Initialized..."));
 
@@ -125,6 +126,70 @@ void setup() {
   delay(2000);
 
   SetupSDCardOperations();    
+
+if (counter == 0)
+  return;
+  
+// Initialize the Real Time Clock
+  if (! rtc.begin()) 
+  {
+    displayFrame();
+    display.setCursor(xOffset, yOffset+(1*lineSpacing));
+    display.print(F("*** ERROR ***   "));
+    display.setCursor(xOffset, yOffset+(2*lineSpacing));
+    display.print(F("Couldnt find RTC"));
+    while (1);
+  } 
+  if (! rtc.initialized()) 
+  {
+    displayFrame();
+    display.setCursor(xOffset, yOffset+(1*lineSpacing));
+    display.print(F("*** WARN ***    "));
+    display.setCursor(xOffset, yOffset+(2*lineSpacing));
+    display.print(F("RTC isnt running"));
+    
+    // following line sets the RTC to the date & time this sketch was compiled
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    // This line sets the RTC with an explicit date & time, for example to set
+    // January 21, 2014 at 3am you would call:
+    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+  }
+  now = rtc.now();
+
+  displayFrame();
+  display.setCursor(xOffset, yOffset+(1*lineSpacing));
+  display.print(F("*** DATE ***    "));
+  display.setCursor(xOffset, yOffset+(2*lineSpacing));
+  display.print(now.year(), DEC);
+  display.print(F("/"));
+  OledDisplayPrintTwoDigits(now.month());
+  display.print(F("/"));
+  OledDisplayPrintTwoDigits(now.day());
+  display.print(F(" "));
+  OledDisplayPrintTwoDigits(now.hour());
+  display.print(F(":"));
+  OledDisplayPrintTwoDigits(now.minute());
+  display.display();
+  delay(2000);
+
+  displayFrame();
+  for(int i=0; i<1; i++) {
+  display.drawRoundRect(i, i, display.width()-2*i, display.height()-2*i,
+      display.height()/4, WHITE);
+  }  
+
+  display.setCursor(xOffset, yOffset+0);     // Start at top-left corner
+  display.print("# Temp  SetPt Delta");
+  display.setCursor(xOffset, yOffset+(1*lineSpacing));     // Start at top-left corner
+  display.print("1 23.23 23.50 +0.27");
+  display.setCursor(xOffset, yOffset+(2*lineSpacing));
+  display.print("2 24.00 24.50 -0.50");
+  display.setCursor(xOffset, yOffset+(3*lineSpacing));
+  display.print("3 26.44 26.00 +0.44");
+  display.setCursor(xOffset, yOffset+(4*lineSpacing));
+  display.print("4 27.85 28.00 -0.15");
+  display.display();
+  
 }
 
 
@@ -326,4 +391,99 @@ void SetupSDCardOperations()
   delay(2000);
   
 //  OledDisplayStatusUpdate_SDLogging(F("Start Up  "));
+}
+
+void OledDisplayStatusUpdate_SDLogging(const __FlashStringHelper*status)
+{
+  displayFrame();
+  display.setCursor(xOffset, yOffset+(1*lineSpacing));
+  display.print("*** LOGGING ***");
+  display.setCursor(xOffset, yOffset+(2*lineSpacing));
+  display.print(status);
+
+  if (counter == 0)
+    return;
+
+  now = rtc.now();
+
+  Serial.print("STATUS: ");
+  Serial.print(status);
+  Serial.print("  ");
+  Serial.print(now.hour(), DEC);
+  Serial.print(":");
+  Serial.print(now.minute());
+  Serial.print(":");
+  Serial.println(now.second());
+
+  display.setCursor(xOffset, yOffset+(3*lineSpacing));
+  display.print(" ");
+  OledDisplayPrintTwoDigits(now.hour());
+  display.print(":");
+  OledDisplayPrintTwoDigits(now.minute());   
+  display.print(":");
+  OledDisplayPrintTwoDigits(now.second());   
+  display.display();
+  delay(2000);
+  
+  if (!SD.begin(chipSelectSDCard)) 
+  {
+    bSDLogFail = true;
+    iToggle++;
+    if ((iToggle & B00000001) == 0)
+    {
+      display.setCursor(xOffset, yOffset+(2*lineSpacing));
+      display.print(F("SD LogFail"));
+    }
+    return;
+  }
+  bSDLogFail = false;
+  iToggle = 0;
+
+//  if ((strcmp((const char*) status, "") != 0) || bForceOneMinuteLogging)
+  {
+    fileSDCard = SD.open("LOGGING.CSV", FILE_WRITE);
+  
+    // if the file opened okay, write to it:
+    if (fileSDCard) 
+    {
+      fileSDCard.print(now.year(), DEC);
+      fileSDCard.print("/");
+      fileSDCard.print(now.month(), DEC);
+      fileSDCard.print("/");
+      fileSDCard.print(now.day(), DEC);
+      fileSDCard.print(",");
+      fileSDCard.print(now.hour(), DEC);
+      fileSDCard.print(":");
+      fileSDCard.print(now.minute(), DEC);
+      fileSDCard.print(":");
+      fileSDCard.print(now.second(), DEC);
+      fileSDCard.print(",");
+//      SDPrintBinary(digitalOutputState,5);
+      fileSDCard.print(",");
+//      SDPrintBinary(digitalInputState_Saved,4);
+      fileSDCard.print(",");
+      fileSDCard.print(status);
+      fileSDCard.println("");
+      fileSDCard.close();
+      SD.end();
+    } 
+    else 
+    {
+      // if the file didn't open, display an error:
+      displayFrame();
+      display.setCursor(xOffset, yOffset+(1*lineSpacing));
+      display.print("*** ERROR ***   ");
+      display.setCursor(xOffset, yOffset+(2*lineSpacing));
+      display.print("Open LOGGING.CSV");
+      display.display();
+      delay(2000);
+    }  
+  }
+}
+
+void OledDisplayPrintTwoDigits(int iVal)
+{
+  if (iVal < 10)
+    display.print(F("0"));
+  display.print(iVal, DEC);
 }
