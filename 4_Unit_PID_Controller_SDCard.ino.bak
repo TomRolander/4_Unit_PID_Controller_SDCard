@@ -60,13 +60,6 @@ DateTime now;
 
 int counter = 0;
 
-int prevHour = 0;
-int prevMin = 0;
-
-float prevTemp[4] = {0.0, 0.0, 0.0, 0.0};
-float setPointTemp[4] = {24.00, 25.00, 26.00, 27.00};
-
-
 // SD Card used for data logging
 #include <SD.h>
 
@@ -184,75 +177,70 @@ void setup() {
   }  
 
   display.setCursor(xOffset, yOffset+0);     // Start at top-left corner
-  display.print("# Temp  SetPt");
- 
-  for (int i=1; i<5; i++)
-  {
-    display.setCursor(xOffset, yOffset+(i*lineSpacing));
-    display.print(i);
-    display.print("       ");
-    display.print(setPointTemp[i-1]);
-  }
+  display.print("# Temp  SetPt Delta");
+  display.setCursor(xOffset, yOffset+(1*lineSpacing));     // Start at top-left corner
+  display.print("1 23.23 23.50 +0.27");
+  display.setCursor(xOffset, yOffset+(2*lineSpacing));
+  display.print("2 24.00 24.50 -0.50");
+  display.setCursor(xOffset, yOffset+(3*lineSpacing));
+  display.print("3 26.44 26.00 +0.44");
+  display.setCursor(xOffset, yOffset+(4*lineSpacing));
+  display.print("4 27.85 28.00 -0.15");
   display.display();
+  
 }
 
 
 void loop() 
 {
-  now = rtc.now();
-  int currentHour = now.hour();
-  int currentMin  = now.minute();
-  float temp[4] = {0.0, 0.0, 0.0, 0.0};
-  float delta[4] = {0.0, 0.0, 0.0, 0.0};
-  uint8_t fault[4] = {false, false, false, false};
-  char separator;
- 
+
   for (int i=0; i<4; i++)
   {
     uint16_t rtd = max[i].readRTD();
   
   //  Serial.print("RTD value: "); Serial.println(rtd);
+    float temp;
     float ratio = rtd;
     ratio /= 32768;
   //  Serial.print("Ratio = "); Serial.println(ratio,8);
   //  Serial.print("Resistance = "); Serial.println(RREF*ratio,8);
 
-    temp[i] = max[i].temperature(RNOMINAL, RREF);
+    temp = max[i].temperature(RNOMINAL, RREF);
     // Check and print any faults
-    fault[i] = max[i].readFault();
-    if (fault[i]) 
+    uint8_t fault = max[i].readFault();
+    if (fault) 
     {
-      Serial.print(i+1); Serial.print(" Fault 0x"); Serial.print(fault[i], HEX);
-      if (fault[i] & MAX31865_FAULT_HIGHTHRESH) {
+      Serial.print(i+1); Serial.print(" Fault 0x"); Serial.print(fault, HEX);
+      if (fault & MAX31865_FAULT_HIGHTHRESH) {
         Serial.println(" RTD High Threshold"); 
       }
-      if (fault[i] & MAX31865_FAULT_LOWTHRESH) {
+      if (fault & MAX31865_FAULT_LOWTHRESH) {
         Serial.println(" RTD Low Threshold"); 
       }
-      if (fault[i] & MAX31865_FAULT_REFINLOW) {
+      if (fault & MAX31865_FAULT_REFINLOW) {
         Serial.println(" REFIN- > 0.85 x Bias"); 
       }
-      if (fault[i] & MAX31865_FAULT_REFINHIGH) {
+      if (fault & MAX31865_FAULT_REFINHIGH) {
         Serial.println(" REFIN- < 0.85 x Bias - FORCE- open"); 
       }
-      if (fault[i] & MAX31865_FAULT_RTDINLOW) {
+      if (fault & MAX31865_FAULT_RTDINLOW) {
         Serial.println(" RTDIN- < 0.85 x Bias - FORCE- open"); 
       }
-      if (fault[i] & MAX31865_FAULT_OVUV) {
+      if (fault & MAX31865_FAULT_OVUV) {
         Serial.println(" Under/Over voltage"); 
       }
       max[i].clearFault();
     }
     else
     {
-      Serial.print(i+1); Serial.print( " Temp = "); Serial.print(temp[i]); 
-      Serial.print(" Delta "); Serial.println(delta[i]);      
+      Serial.print(i+1); Serial.print( " Temp = "); Serial.println(temp);  
     }
   }
 //  Serial.println();
-  delay(1000);
+  delay(2000);
 
   counter++;
+#if 1
   if ((counter & 1) == 1)
   {
     digitalWrite(HeaterUnit1, HIGH);
@@ -263,7 +251,6 @@ void loop()
     digitalWrite(CoolerUnit3, LOW);    
     digitalWrite(HeaterUnit4, HIGH);
     digitalWrite(CoolerUnit4, LOW);    
-    separator = ':';      
   }
   else
   {
@@ -274,49 +261,10 @@ void loop()
     digitalWrite(HeaterUnit3, LOW);
     digitalWrite(CoolerUnit3, HIGH);    
     digitalWrite(HeaterUnit4, LOW);
-    digitalWrite(CoolerUnit4, HIGH);  
-    separator = ' ';      
+    digitalWrite(CoolerUnit4, HIGH);    
   }
-
-  if (prevHour != currentHour || prevMin != currentMin)
-  {
-    display.fillRect(xOffset+(14*(5+1)), yOffset+0,5*(5+1),8,BLACK);
-    display.setCursor(xOffset+(14*(5+1)), yOffset+0);     // Start at top-left corner
-    OledDisplayPrintTwoDigits(now.hour());
-    display.print(separator);
-    OledDisplayPrintTwoDigits(now.minute());
-  }
-  else
-  {
-    display.fillRect(xOffset+(16*(5+1)), yOffset+0,1*(5+1),8,BLACK);
-    display.print(separator);    
-  }
-
-  for (int i=0; i<4; i++)
-  {
-    if (fault[i])
-    {
-        ;
-    }
-    else
-    {
-      if (temp[i] != prevTemp[i])
-      {
-        prevTemp[i] = temp[i];
-        display.fillRect(xOffset+(2*(5+1)), yOffset+((i+1)*lineSpacing),5*(5+1),8,BLACK);
-        display.setCursor(xOffset+(2*(5+1)), yOffset+((i+1)*lineSpacing));
-        display.print(temp[i]);
-
-        delta[i] = temp[i] - setPointTemp[i];
-        display.fillRect(xOffset+(14*(5+1)), yOffset+((i+1)*lineSpacing),5*(5+1),8,BLACK);
-        display.setCursor(xOffset+(14*(5+1)), yOffset+((i+1)*lineSpacing));
-        if (delta[i] >= 0.0)
-          display.print('+');
-        display.print(delta[i]);      
-      } 
-   }
-  } 
-  display.display();   
+#endif
+   
 }
 
 void displayFrame()
@@ -325,7 +273,7 @@ void displayFrame()
   for(int i=0; i<1; i++) {
   display.drawRoundRect(i, i, display.width()-2*i, display.height()-2*i,
       display.height()/4, WHITE);
-  }
+  }    
 }
 
 // Initialize the SD for operations
