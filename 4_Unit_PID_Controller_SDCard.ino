@@ -623,10 +623,10 @@ void SetupSDCardOperations()
   display.display();
   delay(2000);
   
-  OledDisplayStatusUpdate_SDLogging(F("Start Up"));
+  OledDisplayStatusUpdate_SDLogging("Start Up");
 }
 
-void OledDisplayStatusUpdate_SDLogging(const __FlashStringHelper*status)
+void OledDisplayStatusUpdate_SDLogging(char *status)
 {
   displayFrame();
   display.setCursor(xOffset, yOffset+(1*lineSpacing));
