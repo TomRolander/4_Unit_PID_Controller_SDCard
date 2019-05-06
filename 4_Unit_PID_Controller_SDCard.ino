@@ -454,6 +454,8 @@ void loop()
       {
         currentState = STATE_RUN;
         displayRun();
+        for (int i=0; i<4; i++)
+          prevTemp[i] = 0.0;       
       }
       break;
 
