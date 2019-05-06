@@ -93,11 +93,56 @@ int  iToggle = 0;
 #define HeaterUnit4 8
 #define CoolerUnit4 9
 
-void setup() {
+#define menuPin   35
+#define upPin     36
+#define dnPin     37
+#define enterPin  38
+
+#define STATE_RUN                 0
+#define STATE_SP1_WAIT            1
+#define STATE_SP1                 2
+#define STATE_SP1_ENTER_WAIT      3
+#define STATE_SP1_ENTER           4
+#define STATE_SP1_ENTER_UP_WAIT   5
+#define STATE_SP1_ENTER_DN_WAIT   6
+#define STATE_SP1_UPDATE_WAIT     7
+#define STATE_SP2_WAIT            8
+#define STATE_SP2                 9
+#define STATE_SP2_ENTER_WAIT      10
+#define STATE_SP2_ENTER           11
+#define STATE_SP2_ENTER_UP_WAIT   12
+#define STATE_SP2_ENTER_DN_WAIT   13
+#define STATE_SP2_UPDATE_WAIT     14
+#define STATE_CFG_WAIT            15
+#define STATE_CFG                 16
+#define STATE_CFG_ENTER_WAIT      17
+#define STATE_CFG_ENTER           18
+#define STATE_CFG_ENTER_UP_WAIT   19
+#define STATE_CFG_ENTER_DN_WAIT   20
+#define STATE_CFG_UPDATE_WAIT     21
+#define STATE_RUN_WAIT            22
+#define STATE_HI_PEAK_WAIT        23
+#define STATE_HI_PEAK             24
+#define STATE_HI_PEAK_FINISH      25
+#define STATE_LO_VALY_WAIT        26
+#define STATE_LO_VALY             27
+#define STATE_LO_VALY_FINISH      28
+#define STATE_STBY                29
+
+int currentState = STATE_RUN;
+int lastState = 0;
+int savedState;
+
+int updatingSetpoint = false;
+
+int previousEnterButton = false;
+
+void setup() 
+{
   Wire.begin();
   
   Serial.begin(9600);
-  Serial.println(F("Serial Initialized..."));
+  Serial.println("Serial Initialized...");
 
   for (int i=0; i<4; i++) {
     max[i].begin(MAX31865_3WIRE);  // set to 2WIRE or 4WIRE as necessary
@@ -112,6 +157,11 @@ void setup() {
   pinMode(HeaterUnit4, OUTPUT);
   pinMode(CoolerUnit4, OUTPUT);
   
+  pinMode(menuPin, INPUT_PULLUP);
+  pinMode(upPin, INPUT_PULLUP);
+  pinMode(dnPin, INPUT_PULLUP);
+  pinMode(enterPin, INPUT_PULLUP);
+
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if(!display.begin(SSD1306_SWITCHCAPVCC)) {
     Serial.println("SSD1306 allocation failed");
@@ -123,11 +173,11 @@ void setup() {
   display.setTextColor(WHITE); // Draw white text
   display.cp437(true);         // Use full 256 char 'Code Page 437' font
 
-  display.setCursor(xOffset, yOffset+0);     // Start at top-left corner
+  display.setCursor(xOffset, yOffset+0);     
   display.print("4 Unit PID");
-  display.setCursor(xOffset, yOffset+lineSpacing);     // Start at top-left corner
+  display.setCursor(xOffset, yOffset+lineSpacing);     
   display.print("Hopkins 4xTomPort");
-  display.setCursor(xOffset, yOffset+(2*lineSpacing));     // Start at top-left corner
+  display.setCursor(xOffset, yOffset+(2*lineSpacing));     
   display.print(VERSION);
   display.display();
 
@@ -140,18 +190,18 @@ void setup() {
   {
     displayFrame();
     display.setCursor(xOffset, yOffset+(1*lineSpacing));
-    display.print(F("*** ERROR ***   "));
+    display.print("*** ERROR ***   ");
     display.setCursor(xOffset, yOffset+(2*lineSpacing));
-    display.print(F("Couldnt find RTC"));
+    display.print("Couldnt find RTC");
     while (1);
   } 
   if (! rtc.initialized()) 
   {
     displayFrame();
     display.setCursor(xOffset, yOffset+(1*lineSpacing));
-    display.print(F("*** WARN ***    "));
+    display.print("*** WARN ***    ");
     display.setCursor(xOffset, yOffset+(2*lineSpacing));
-    display.print(F("RTC isnt running"));
+    display.print("RTC isnt running");
     
     // following line sets the RTC to the date & time this sketch was compiled
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
@@ -163,27 +213,32 @@ void setup() {
 
   displayFrame();
   display.setCursor(xOffset, yOffset+(1*lineSpacing));
-  display.print(F("*** DATE ***    "));
+  display.print("*** DATE ***    ");
   display.setCursor(xOffset, yOffset+(2*lineSpacing));
   display.print(now.year(), DEC);
-  display.print(F("/"));
+  display.print("/");
   OledDisplayPrintTwoDigits(now.month());
-  display.print(F("/"));
+  display.print("/");
   OledDisplayPrintTwoDigits(now.day());
-  display.print(F(" "));
+  display.print(" ");
   OledDisplayPrintTwoDigits(now.hour());
-  display.print(F(":"));
+  display.print(":");
   OledDisplayPrintTwoDigits(now.minute());
   display.display();
   delay(2000);
 
+  displayRun();
+}
+
+void displayRun()
+{
   displayFrame();
   for(int i=0; i<1; i++) {
   display.drawRoundRect(i, i, display.width()-2*i, display.height()-2*i,
       display.height()/4, WHITE);
   }  
 
-  display.setCursor(xOffset, yOffset+0);     // Start at top-left corner
+  display.setCursor(xOffset, yOffset+0);     
   display.print("# Temp  SetPt");
  
   for (int i=1; i<5; i++)
@@ -193,9 +248,8 @@ void setup() {
     display.print("       ");
     display.print(setPointTemp[i-1]);
   }
-  display.display();
+  display.display();  
 }
-
 
 void loop() 
 {
@@ -206,117 +260,208 @@ void loop()
   float delta[4] = {0.0, 0.0, 0.0, 0.0};
   uint8_t fault[4] = {false, false, false, false};
   char separator;
- 
-  for (int i=0; i<4; i++)
-  {
-    uint16_t rtd = max[i].readRTD();
-  
-  //  Serial.print("RTD value: "); Serial.println(rtd);
-    float ratio = rtd;
-    ratio /= 32768;
-  //  Serial.print("Ratio = "); Serial.println(ratio,8);
-  //  Serial.print("Resistance = "); Serial.println(RREF*ratio,8);
 
-    temp[i] = max[i].temperature(RNOMINAL, RREF);
-    // Check and print any faults
-    fault[i] = max[i].readFault();
-    if (fault[i]) 
-    {
-      Serial.print(i+1); Serial.print(" Fault 0x"); Serial.print(fault[i], HEX);
-      if (fault[i] & MAX31865_FAULT_HIGHTHRESH) {
-        Serial.println(" RTD High Threshold"); 
-      }
-      if (fault[i] & MAX31865_FAULT_LOWTHRESH) {
-        Serial.println(" RTD Low Threshold"); 
-      }
-      if (fault[i] & MAX31865_FAULT_REFINLOW) {
-        Serial.println(" REFIN- > 0.85 x Bias"); 
-      }
-      if (fault[i] & MAX31865_FAULT_REFINHIGH) {
-        Serial.println(" REFIN- < 0.85 x Bias - FORCE- open"); 
-      }
-      if (fault[i] & MAX31865_FAULT_RTDINLOW) {
-        Serial.println(" RTDIN- < 0.85 x Bias - FORCE- open"); 
-      }
-      if (fault[i] & MAX31865_FAULT_OVUV) {
-        Serial.println(" Under/Over voltage"); 
-      }
-      max[i].clearFault();
-    }
-    else
-    {
-      Serial.print(i+1); Serial.print( " Temp = "); Serial.print(temp[i]); 
-      Serial.print(" Delta "); Serial.println(delta[i]);      
-    }
-  }
-//  Serial.println();
-  delay(1000);
+  int menuButton = digitalRead(menuPin);
+  int upButton = digitalRead(upPin);
+  int dnButton = digitalRead(dnPin);
+  int enterButton = digitalRead(enterPin);  
 
-  counter++;
-  if ((counter & 1) == 1)
-  {
-    digitalWrite(HeaterUnit1, HIGH);
-    digitalWrite(CoolerUnit1, LOW);    
-    digitalWrite(HeaterUnit2, HIGH);
-    digitalWrite(CoolerUnit2, LOW);    
-    digitalWrite(HeaterUnit3, HIGH);
-    digitalWrite(CoolerUnit3, LOW);    
-    digitalWrite(HeaterUnit4, HIGH);
-    digitalWrite(CoolerUnit4, LOW);    
-    separator = ':';      
-  }
-  else
-  {
-    digitalWrite(HeaterUnit1, LOW);
-    digitalWrite(CoolerUnit1, HIGH);    
-    digitalWrite(HeaterUnit2, LOW);
-    digitalWrite(CoolerUnit2, HIGH);    
-    digitalWrite(HeaterUnit3, LOW);
-    digitalWrite(CoolerUnit3, HIGH);    
-    digitalWrite(HeaterUnit4, LOW);
-    digitalWrite(CoolerUnit4, HIGH);  
-    separator = ' ';      
-  }
 
-  if (prevHour != currentHour || prevMin != currentMin)
+  switch (currentState)  
   {
-    display.fillRect(xOffset+(14*(5+1)), yOffset+0,5*(5+1),8,BLACK);
-    display.setCursor(xOffset+(14*(5+1)), yOffset+0);     // Start at top-left corner
-    OledDisplayPrintTwoDigits(now.hour());
-    display.print(separator);
-    OledDisplayPrintTwoDigits(now.minute());
-  }
-  else
-  {
-    display.fillRect(xOffset+(16*(5+1)), yOffset+0,1*(5+1),8,BLACK);
-    display.print(separator);    
-  }
-
-  for (int i=0; i<4; i++)
-  {
-    if (fault[i])
-    {
-        ;
-    }
-    else
-    {
-      if (temp[i] != prevTemp[i])
+    case STATE_STBY:
+      break;
+      
+    case STATE_RUN:
+      if (menuButton == LOW)
       {
-        prevTemp[i] = temp[i];
-        display.fillRect(xOffset+(2*(5+1)), yOffset+((i+1)*lineSpacing),5*(5+1),8,BLACK);
-        display.setCursor(xOffset+(2*(5+1)), yOffset+((i+1)*lineSpacing));
-        display.print(temp[i]);
-
-        delta[i] = temp[i] - setPointTemp[i];
-        display.fillRect(xOffset+(14*(5+1)), yOffset+((i+1)*lineSpacing),5*(5+1),8,BLACK);
-        display.setCursor(xOffset+(14*(5+1)), yOffset+((i+1)*lineSpacing));
-        if (delta[i] >= 0.0)
-          display.print('+');
-        display.print(delta[i]);      
+        previousEnterButton = false;
+        currentState = STATE_SP1_WAIT;
+        break;
+      }
+    
+      for (int i=0; i<4; i++)
+      {
+        uint16_t rtd = max[i].readRTD();
+      
+      //  Serial.print("RTD value: "); Serial.println(rtd);
+        float ratio = rtd;
+        ratio /= 32768;
+      //  Serial.print("Ratio = "); Serial.println(ratio,8);
+      //  Serial.print("Resistance = "); Serial.println(RREF*ratio,8);
+    
+        temp[i] = max[i].temperature(RNOMINAL, RREF);
+        // Check and print any faults
+        fault[i] = max[i].readFault();
+        if (fault[i]) 
+        {
+          Serial.print(i+1); Serial.print(" Fault 0x"); Serial.print(fault[i], HEX);
+          if (fault[i] & MAX31865_FAULT_HIGHTHRESH) {
+            Serial.println(" RTD High Threshold"); 
+          }
+          if (fault[i] & MAX31865_FAULT_LOWTHRESH) {
+            Serial.println(" RTD Low Threshold"); 
+          }
+          if (fault[i] & MAX31865_FAULT_REFINLOW) {
+            Serial.println(" REFIN- > 0.85 x Bias"); 
+          }
+          if (fault[i] & MAX31865_FAULT_REFINHIGH) {
+            Serial.println(" REFIN- < 0.85 x Bias - FORCE- open"); 
+          }
+          if (fault[i] & MAX31865_FAULT_RTDINLOW) {
+            Serial.println(" RTDIN- < 0.85 x Bias - FORCE- open"); 
+          }
+          if (fault[i] & MAX31865_FAULT_OVUV) {
+            Serial.println(" Under/Over voltage"); 
+          }
+          max[i].clearFault();
+        }
+        else
+        {
+          Serial.print(i+1); Serial.print( " Temp = "); Serial.print(temp[i]); 
+          Serial.print(" Delta "); Serial.println(temp[i] - setPointTemp[i]);      
+        }
+      }
+      
+      delay(1000);
+    
+      counter++;
+      if ((counter & 1) == 1)
+      {
+        digitalWrite(HeaterUnit1, HIGH);
+        digitalWrite(CoolerUnit1, LOW);    
+        digitalWrite(HeaterUnit2, HIGH);
+        digitalWrite(CoolerUnit2, LOW);    
+        digitalWrite(HeaterUnit3, HIGH);
+        digitalWrite(CoolerUnit3, LOW);    
+        digitalWrite(HeaterUnit4, HIGH);
+        digitalWrite(CoolerUnit4, LOW);    
+        separator = ':';      
+      }
+      else
+      {
+        digitalWrite(HeaterUnit1, LOW);
+        digitalWrite(CoolerUnit1, HIGH);    
+        digitalWrite(HeaterUnit2, LOW);
+        digitalWrite(CoolerUnit2, HIGH);    
+        digitalWrite(HeaterUnit3, LOW);
+        digitalWrite(CoolerUnit3, HIGH);    
+        digitalWrite(HeaterUnit4, LOW);
+        digitalWrite(CoolerUnit4, HIGH);  
+        separator = ' ';      
+      }
+    
+      if (prevHour != currentHour || prevMin != currentMin)
+      {
+        display.fillRect(xOffset+(14*(5+1)), yOffset+0,5*(5+1),8,BLACK);
+        display.setCursor(xOffset+(14*(5+1)), yOffset+0);     
+        OledDisplayPrintTwoDigits(now.hour());
+        display.print(separator);
+        OledDisplayPrintTwoDigits(now.minute());
+      }
+      else
+      {
+        display.fillRect(xOffset+(16*(5+1)), yOffset+0,1*(5+1),8,BLACK);
+        display.print(separator);    
+      }
+    
+      for (int i=0; i<4; i++)
+      {
+        if (fault[i])
+        {
+            ;
+        }
+        else
+        {
+          if (temp[i] != prevTemp[i])
+          {
+            prevTemp[i] = temp[i];
+            display.fillRect(xOffset+(2*(5+1)), yOffset+((i+1)*lineSpacing),5*(5+1),8,BLACK);
+            display.setCursor(xOffset+(2*(5+1)), yOffset+((i+1)*lineSpacing));
+            display.print(temp[i]);
+    
+            delta[i] = temp[i] - setPointTemp[i];
+            display.fillRect(xOffset+(14*(5+1)), yOffset+((i+1)*lineSpacing),5*(5+1),8,BLACK);
+            display.setCursor(xOffset+(14*(5+1)), yOffset+((i+1)*lineSpacing));
+            if (delta[i] >= 0.0)
+              display.print('+');
+            display.print(delta[i]);      
+          } 
+       }
       } 
-   }
-  } 
-  display.display();   
+      display.display();  
+      break;
+
+    case STATE_SP1_WAIT:
+      displayFrame();
+      display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     
+      display.print("SP 1");
+      if (menuButton == HIGH)
+        currentState = STATE_SP1;
+      break;
+    
+    case STATE_SP1:
+      display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     
+      display.print("SP 1");
+      if (menuButton == LOW)
+        currentState = STATE_SP2_WAIT;
+      else
+      if (enterButton == LOW)
+        currentState = STATE_SP1_ENTER_WAIT;
+      break;
+      
+    case STATE_SP2_WAIT:
+      displayFrame();
+      display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     // Start at top-left corner
+      display.print("SP 2");
+      if (menuButton == HIGH)
+        currentState = STATE_SP2;
+      break;
+    
+    case STATE_SP2:
+      display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     // Start at top-left corner
+      display.print("SP 2");
+      if (menuButton == LOW)
+        currentState = STATE_CFG_WAIT;
+      else
+      if (enterButton == LOW)
+        currentState = STATE_SP2_ENTER_WAIT;
+      break;
+      
+    case STATE_CFG_WAIT:
+      displayFrame();
+      display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     // Start at top-left corner
+      display.print("CNFG");    
+      if (menuButton == HIGH)
+        currentState = STATE_CFG;
+      break;
+    
+    case STATE_CFG:
+      display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     // Start at top-left corner
+      display.print("CNFG");    
+      if (menuButton == LOW)
+        currentState = STATE_RUN_WAIT;
+      else
+      if (enterButton == LOW)
+        currentState = STATE_CFG_ENTER_WAIT;
+      break;
+
+    case STATE_RUN_WAIT:
+      displayFrame();
+      display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     // Start at top-left corner
+      display.print("RUN");    
+      if (menuButton == HIGH)
+      {
+        currentState = STATE_RUN;
+        displayRun();
+      }
+      break;
+
+    default:
+      break;
+  }
+
+  display.display();
 }
 
 void displayFrame()
@@ -478,7 +623,7 @@ void SetupSDCardOperations()
   display.display();
   delay(2000);
   
-  OledDisplayStatusUpdate_SDLogging(F("Start Up  "));
+  OledDisplayStatusUpdate_SDLogging(F("Start Up"));
 }
 
 void OledDisplayStatusUpdate_SDLogging(const __FlashStringHelper*status)
@@ -517,7 +662,7 @@ void OledDisplayStatusUpdate_SDLogging(const __FlashStringHelper*status)
     if ((iToggle & B00000001) == 0)
     {
       display.setCursor(xOffset, yOffset+(2*lineSpacing));
-      display.print(F("SD LogFail"));
+      display.print("SD LogFail");
     }
     return;
   }
@@ -569,6 +714,6 @@ void OledDisplayStatusUpdate_SDLogging(const __FlashStringHelper*status)
 void OledDisplayPrintTwoDigits(int iVal)
 {
   if (iVal < 10)
-    display.print(F("0"));
+    display.print("0");
   display.print(iVal, DEC);
 }
