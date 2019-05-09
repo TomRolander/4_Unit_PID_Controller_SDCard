@@ -3,7 +3,7 @@
  4xTomPort PID Controller
  **************************************************************************/
 
-#define VERSION "Ver 0.2 2019-05-06"
+#define VERSION "Ver 0.2 2019-05-09"
 
 #include <Adafruit_MAX31865.h>
 
@@ -99,37 +99,31 @@ int  iToggle = 0;
 #define enterPin  38
 
 #define STATE_RUN                 0
-#define STATE_SP1_WAIT            1
-#define STATE_SP1                 2
-#define STATE_SP1_ENTER_WAIT      3
-#define STATE_SP1_ENTER           4
-#define STATE_SP1_ENTER_UP_WAIT   5
-#define STATE_SP1_ENTER_DN_WAIT   6
-#define STATE_SP1_UPDATE_WAIT     7
-#define STATE_SP2_WAIT            8
-#define STATE_SP2                 9
-#define STATE_SP2_ENTER_WAIT      10
-#define STATE_SP2_ENTER           11
-#define STATE_SP2_ENTER_UP_WAIT   12
-#define STATE_SP2_ENTER_DN_WAIT   13
-#define STATE_SP2_UPDATE_WAIT     14
-#define STATE_CFG_WAIT            15
-#define STATE_CFG                 16
-#define STATE_CFG_ENTER_WAIT      17
-#define STATE_CFG_ENTER           18
-#define STATE_CFG_ENTER_UP_WAIT   19
-#define STATE_CFG_ENTER_DN_WAIT   20
-#define STATE_CFG_UPDATE_WAIT     21
-#define STATE_RUN_WAIT            22
-#define STATE_HI_PEAK_WAIT        23
-#define STATE_HI_PEAK             24
-#define STATE_HI_PEAK_FINISH      25
-#define STATE_LO_VALY_WAIT        26
-#define STATE_LO_VALY             27
-#define STATE_LO_VALY_FINISH      28
-#define STATE_STBY                29
+#define STATE_SP_WAIT             1
+#define STATE_SP                  2
+#define STATE_SP_ENTER_WAIT       3
+#define STATE_SP_ENTER            4
+#define STATE_SP_ENTER_UP_WAIT    5
+#define STATE_SP_ENTER_DN_WAIT    6
+#define STATE_SP_UPDATE_WAIT      7
+#define STATE_CFG_WAIT            8
+#define STATE_CFG                 9
+#define STATE_CFG_ENTER_WAIT      10
+#define STATE_CFG_ENTER           11
+#define STATE_CFG_ENTER_UP_WAIT   12
+#define STATE_CFG_ENTER_DN_WAIT   13
+#define STATE_CFG_UPDATE_WAIT     14
+#define STATE_RUN_WAIT            15
+#define STATE_HI_PEAK_WAIT        16
+#define STATE_HI_PEAK             17
+#define STATE_HI_PEAK_FINISH      18
+#define STATE_LO_VALY_WAIT        19
+#define STATE_LO_VALY             20
+#define STATE_LO_VALY_FINISH      21
+#define STATE_STBY                22
 
 int currentState = STATE_RUN;
+int currentSetPoint = 1;
 int lastState = 0;
 int savedState;
 
@@ -276,7 +270,8 @@ void loop()
       if (menuButton == LOW)
       {
         previousEnterButton = false;
-        currentState = STATE_SP1_WAIT;
+        currentState = STATE_SP_WAIT;
+        currentSetPoint = 1;
         break;
       }
     
@@ -392,42 +387,42 @@ void loop()
       display.display();  
       break;
 
-    case STATE_SP1_WAIT:
+    case STATE_SP_WAIT:
       displayFrame();
       display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     
-      display.print("SP 1");
+      display.print("SP ");
+      display.print(currentSetPoint);
       if (menuButton == HIGH)
-        currentState = STATE_SP1;
+        currentState = STATE_SP;
       break;
     
-    case STATE_SP1:
+    case STATE_SP:
       display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     
-      display.print("SP 1");
+      display.print("SP ");
+      display.print(currentSetPoint);
       if (menuButton == LOW)
-        currentState = STATE_SP2_WAIT;
+      {
+        currentState = STATE_SP_WAIT;
+        currentSetPoint++;
+        if (currentSetPoint > 4)
+          currentState = STATE_CFG_WAIT;         
+      }
       else
       if (enterButton == LOW)
-        currentState = STATE_SP1_ENTER_WAIT;
+        currentState = STATE_SP_ENTER_WAIT;
       break;
       
-    case STATE_SP2_WAIT:
-      displayFrame();
-      display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     // Start at top-left corner
-      display.print("SP 2");
-      if (menuButton == HIGH)
-        currentState = STATE_SP2;
-      break;
+    case STATE_SP_ENTER_WAIT:
     
-    case STATE_SP2:
-      display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     // Start at top-left corner
-      display.print("SP 2");
-      if (menuButton == LOW)
-        currentState = STATE_CFG_WAIT;
-      else
-      if (enterButton == LOW)
-        currentState = STATE_SP2_ENTER_WAIT;
-      break;
-      
+    case STATE_SP_ENTER:
+    
+    case STATE_SP_ENTER_UP_WAIT:
+    
+    case STATE_SP_ENTER_DN_WAIT:
+    
+    case STATE_SP_UPDATE_WAIT:
+
+    
     case STATE_CFG_WAIT:
       displayFrame();
       display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     // Start at top-left corner
