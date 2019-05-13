@@ -5,6 +5,28 @@
 
 #define VERSION "Ver 0.2 2019-05-09"
 
+
+int maxRTD=1;
+
+
+/********************************************************
+ * PID Proportional on measurement Example
+ * Setting the PID to use Proportional on measurement will 
+ * make the output move more smoothly when the setpoint 
+ * is changed.  In addition, it can eliminate overshoot
+ * in certain processes like sous-vides.
+ ********************************************************/
+
+#include <PID_v1.h>
+
+//Define Variables we'll be connecting to
+double Setpoint, Input, Output;
+
+//Specify the links and initial tuning parameters
+PID myPID(&Input, &Output, &Setpoint,2,5,1,P_ON_M, DIRECT); //P_ON_M specifies that Proportional on Measurement be used
+                                                            //P_ON_E (Proportional on Error) is the default behavior
+
+
 #include <Adafruit_MAX31865.h>
 
 // Use software SPI: CS, DI, DO, CLK
@@ -138,18 +160,28 @@ void setup()
   Serial.begin(9600);
   Serial.println("Serial Initialized...");
 
-  for (int i=0; i<4; i++) {
+  for (int i=0; i<maxRTD; i++) {
     max[i].begin(MAX31865_3WIRE);  // set to 2WIRE or 4WIRE as necessary
   }
 
-  pinMode(HeaterUnit1, OUTPUT);
-  pinMode(CoolerUnit1, OUTPUT);
+#if 0
+//  pinMode(HeaterUnit1, OUTPUT);
+//  digitalWrite(HeaterUnit1, LOW);    
+//  pinMode(CoolerUnit1, OUTPUT);
+//  digitalWrite(CoolerUnit1, LOW);    
   pinMode(HeaterUnit2, OUTPUT);
+  digitalWrite(HeaterUnit2, LOW);    
   pinMode(CoolerUnit2, OUTPUT);
+  digitalWrite(CoolerUnit2, LOW);    
   pinMode(HeaterUnit3, OUTPUT);
+  digitalWrite(HeaterUnit3, LOW);    
   pinMode(CoolerUnit3, OUTPUT);
+  digitalWrite(CoolerUnit3, LOW);    
   pinMode(HeaterUnit4, OUTPUT);
+  digitalWrite(HeaterUnit4, LOW);    
   pinMode(CoolerUnit4, OUTPUT);
+  digitalWrite(CoolerUnit4, LOW);    
+#endif
   
   pinMode(menuPin, INPUT_PULLUP);
   pinMode(upPin, INPUT_PULLUP);
@@ -222,6 +254,71 @@ void setup()
   delay(2000);
 
   displayRun();
+
+//For Arduino Mega1280, Mega2560, MegaADK, Spider or any other board using ATmega1280 or ATmega2560
+
+//---------------------------------------------- Set PWM frequency for D4 & D13 ------------------------------
+  
+//TCCR0B = TCCR0B & B11111000 | B00000001;    // set timer 0 divisor to     1 for PWM frequency of 62500.00 Hz
+//TCCR0B = TCCR0B & B11111000 | B00000010;    // set timer 0 divisor to     8 for PWM frequency of  7812.50 Hz
+//TCCR0B = TCCR0B & B11111000 | B00000011;    // set timer 0 divisor to    64 for PWM frequency of   976.56 Hz
+//TCCR0B = TCCR0B & B11111000 | B00000100;    // set timer 0 divisor to   256 for PWM frequency of   244.14 Hz
+TCCR0B = TCCR0B & B11111000 | B00000101;    // set timer 0 divisor to  1024 for PWM frequency of    61.04 Hz
+
+
+//---------------------------------------------- Set PWM frequency for D11 & D12 -----------------------------
+  
+//TCCR1B = TCCR1B & B11111000 | B00000001;    // set timer 1 divisor to     1 for PWM frequency of 31372.55 Hz
+//TCCR1B = TCCR1B & B11111000 | B00000010;    // set timer 1 divisor to     8 for PWM frequency of  3921.16 Hz
+//TCCR1B = TCCR1B & B11111000 | B00000011;    // set timer 1 divisor to    64 for PWM frequency of   490.20 Hz
+//TCCR1B = TCCR1B & B11111000 | B00000100;    // set timer 1 divisor to   256 for PWM frequency of   122.55 Hz
+//TCCR1B = TCCR1B & B11111000 | B00000101;    // set timer 1 divisor to  1024 for PWM frequency of    30.64 Hz
+
+//---------------------------------------------- Set PWM frequency for D9 & D10 ------------------------------
+  
+//TCCR2B = TCCR2B & B11111000 | B00000001;    // set timer 2 divisor to     1 for PWM frequency of 31372.55 Hz
+//TCCR2B = TCCR2B & B11111000 | B00000010;    // set timer 2 divisor to     8 for PWM frequency of  3921.16 Hz
+//TCCR2B = TCCR2B & B11111000 | B00000011;    // set timer 2 divisor to    32 for PWM frequency of   980.39 Hz
+//TCCR2B = TCCR2B & B11111000 | B00000100;    // set timer 2 divisor to    64 for PWM frequency of   490.20 Hz
+//TCCR2B = TCCR2B & B11111000 | B00000101;    // set timer 2 divisor to   128 for PWM frequency of   245.10 Hz
+//TCCR2B = TCCR2B & B11111000 | B00000110;    // set timer 2 divisor to   256 for PWM frequency of   122.55 Hz
+  TCCR2B = TCCR2B & B11111000 | B00000111;    // set timer 2 divisor to  1024 for PWM frequency of    30.64 Hz
+
+
+//---------------------------------------------- Set PWM frequency for D2, D3 & D5 ---------------------------
+  
+//TCCR3B = TCCR3B & B11111000 | B00000001;    // set timer 3 divisor to     1 for PWM frequency of 31372.55 Hz
+//TCCR3B = TCCR3B & B11111000 | B00000010;    // set timer 3 divisor to     8 for PWM frequency of  3921.16 Hz
+//TCCR3B = TCCR3B & B11111000 | B00000011;    // set timer 3 divisor to    64 for PWM frequency of   490.20 Hz
+//TCCR3B = TCCR3B & B11111000 | B00000100;    // set timer 3 divisor to   256 for PWM frequency of   122.55 Hz
+  TCCR3B = TCCR3B & B11111000 | B00000101;    // set timer 3 divisor to  1024 for PWM frequency of    30.64 Hz
+
+  
+//---------------------------------------------- Set PWM frequency for D6, D7 & D8 ---------------------------
+  
+//TCCR4B = TCCR4B & B11111000 | B00000001;    // set timer 4 divisor to     1 for PWM frequency of 31372.55 Hz
+//TCCR4B = TCCR4B & B11111000 | B00000010;    // set timer 4 divisor to     8 for PWM frequency of  3921.16 Hz
+//TCCR4B = TCCR4B & B11111000 | B00000011;    // set timer 4 divisor to    64 for PWM frequency of   490.20 Hz
+//TCCR4B = TCCR4B & B11111000 | B00000100;    // set timer 4 divisor to   256 for PWM frequency of   122.55 Hz
+  TCCR4B = TCCR4B & B11111000 | B00000101;    // set timer 4 divisor to  1024 for PWM frequency of    30.64 Hz
+
+
+//---------------------------------------------- Set PWM frequency for D44, D45 & D46 ------------------------
+  
+//TCCR5B = TCCR5B & B11111000 | B00000001;    // set timer 5 divisor to     1 for PWM frequency of 31372.55 Hz
+//TCCR5B = TCCR5B & B11111000 | B00000010;    // set timer 5 divisor to     8 for PWM frequency of  3921.16 Hz
+//TCCR5B = TCCR5B & B11111000 | B00000011;    // set timer 5 divisor to    64 for PWM frequency of   490.20 Hz
+//TCCR5B = TCCR5B & B11111000 | B00000100;    // set timer 5 divisor to   256 for PWM frequency of   122.55 Hz
+//TCCR5B = TCCR5B & B11111000 | B00000101;    // set timer 5 divisor to  1024 for PWM frequency of    30.64 Hz
+  
+
+  //initialize the variables we're linked to
+  Input = 50.0;
+  Setpoint = 100.0;
+
+  //turn the PID on
+  myPID.SetMode(AUTOMATIC);
+
 }
 
 void displayRun()
@@ -274,10 +371,10 @@ void loop()
         currentSetPoint = 1;
         break;
       }
-    
-      for (int i=0; i<4; i++)
+
+      for (int i=0; i<maxRTD; i++)
       {
-        uint16_t rtd = max[i].readRTD();
+       uint16_t rtd = max[i].readRTD();
       
       //  Serial.print("RTD value: "); Serial.println(rtd);
         float ratio = rtd;
@@ -318,13 +415,14 @@ void loop()
         }
       }
       
-      delay(1000);
+//      delay(1000);
     
+#if 0
       counter++;
       if ((counter & 1) == 1)
       {
-        digitalWrite(HeaterUnit1, HIGH);
-        digitalWrite(CoolerUnit1, LOW);    
+        //digitalWrite(HeaterUnit1, HIGH);
+        //digitalWrite(CoolerUnit1, LOW);    
         digitalWrite(HeaterUnit2, HIGH);
         digitalWrite(CoolerUnit2, LOW);    
         digitalWrite(HeaterUnit3, HIGH);
@@ -335,8 +433,8 @@ void loop()
       }
       else
       {
-        digitalWrite(HeaterUnit1, LOW);
-        digitalWrite(CoolerUnit1, HIGH);    
+        //digitalWrite(HeaterUnit1, LOW);
+        //digitalWrite(CoolerUnit1, HIGH);    
         digitalWrite(HeaterUnit2, LOW);
         digitalWrite(CoolerUnit2, HIGH);    
         digitalWrite(HeaterUnit3, LOW);
@@ -345,6 +443,7 @@ void loop()
         digitalWrite(CoolerUnit4, HIGH);  
         separator = ' ';      
       }
+#endif
     
       if (prevHour != currentHour || prevMin != currentMin)
       {
@@ -360,7 +459,7 @@ void loop()
         display.print(separator);    
       }
     
-      for (int i=0; i<4; i++)
+      for (int i=0; i<maxRTD; i++)
       {
         if (fault[i])
         {
@@ -368,6 +467,32 @@ void loop()
         }
         else
         {
+          if (i == 0)
+          {
+            Input += 5.0;   //analogRead(0);
+            if (Input > 150.0)
+              Input = 50.0;
+
+            if (Input < Setpoint)
+              myPID.SetControllerDirection(DIRECT);
+            else            
+              myPID.SetControllerDirection(REVERSE);
+
+            myPID.Compute();
+Serial.print("Input = "); Serial.print(Input);Serial.print(", Output = "); Serial.println(Output);            
+            
+            if (Input < Setpoint)
+            {
+              analogWrite(HeaterUnit1,Output); 
+              analogWrite(CoolerUnit1,0); 
+            }
+            else
+            {
+              analogWrite(CoolerUnit1,Output); 
+              analogWrite(HeaterUnit1,0);                         
+            }
+          }
+          
           if (temp[i] != prevTemp[i])
           {
             prevTemp[i] = temp[i];
@@ -449,7 +574,7 @@ void loop()
       {
         currentState = STATE_RUN;
         displayRun();
-        for (int i=0; i<4; i++)
+        for (int i=0; i<maxRTD; i++)
           prevTemp[i] = 0.0;       
       }
       break;
@@ -464,7 +589,7 @@ void loop()
 void displayFrame()
 {
   display.clearDisplay();
-  for(int i=0; i<1; i++) {
+  for(int i=0; i<maxRTD; i++) {
   display.drawRoundRect(i, i, display.width()-2*i, display.height()-2*i,
       display.height()/4, WHITE);
   }
