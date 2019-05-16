@@ -3,7 +3,7 @@
  4xTomPort PID Controller
  **************************************************************************/
 
-#define VERSION "Ver 0.2 2019-05-09"
+#define VERSION "Ver 0.2 2019-05-16"
 
 
 int maxRTD=1;
@@ -20,12 +20,38 @@ int maxRTD=1;
 #include <PID_v1.h>
 
 //Define Variables we'll be connecting to
-double Setpoint, Input, Output;
+double Setpoint[4] = {100.0, 100.0, 100.0, 100.0};
+double Input[4] = {100.0, 100.0, 100.0, 100.0};
+double Output[4] = {0.0, 0.0, 0.0, 0.0};
+
+double SetpointNew;
+
+double prevTemp[4] = {0.0, 0.0, 0.0, 0.0};
+double setPointTemp[4] = {24.00, 25.00, 26.00, 27.00};
+
+int Kp = 2;
+int Ki = 5;
+int Kd = 1;
+
+int POn = P_ON_E;
+int Direction[4] = {DIRECT, DIRECT, DIRECT, DIRECT};
 
 //Specify the links and initial tuning parameters
-PID myPID(&Input, &Output, &Setpoint,2,5,1,P_ON_M, DIRECT); //P_ON_M specifies that Proportional on Measurement be used
-                                                            //P_ON_E (Proportional on Error) is the default behavior
+#if 0
+PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, P_ON_E, DIRECT); //P_ON_M specifies that Proportional on Measurement be used
+                                                                   //P_ON_E (Proportional on Error) is the default behavior
+#endif
 
+PID myPID[4] = {
+  PID(&Input[0], &Output[0], &Setpoint[0], Kp, Ki, Kd, POn, Direction[0]),
+  PID(&Input[1], &Output[1], &Setpoint[1], Kp, Ki, Kd, POn, Direction[1]),
+  PID(&Input[2], &Output[2], &Setpoint[2], Kp, Ki, Kd, POn, Direction[2]),
+  PID(&Input[3], &Output[3], &Setpoint[3], Kp, Ki, Kd, POn, Direction[3])
+};
+
+double SetpointRamp[4][240];
+
+double DeltaIncrement = 0.5;
 
 #include <Adafruit_MAX31865.h>
 
@@ -72,8 +98,6 @@ int lineSpacing=12;
 int xOffset = 8;
 int yOffset = 4;
 
-
-
 // Date and time functions using a DS1307 RTC connected via I2C and Wire lib
 #include "RTClib.h"
 
@@ -84,9 +108,6 @@ int counter = 0;
 
 int prevHour = 0;
 int prevMin = 0;
-
-float prevTemp[4] = {0.0, 0.0, 0.0, 0.0};
-float setPointTemp[4] = {24.00, 25.00, 26.00, 27.00};
 
 
 // SD Card used for data logging
@@ -145,13 +166,31 @@ int  iToggle = 0;
 #define STATE_STBY                22
 
 int currentState = STATE_RUN;
-int currentSetPoint = 1;
+int currentSetpoint = 0;
 int lastState = 0;
 int savedState;
 
 int updatingSetpoint = false;
 
 int previousEnterButton = false;
+
+int menuButton;
+int upButton;
+int dnButton;
+int enterButton;
+
+int menuButtonLast = HIGH;
+int upButtonLast = HIGH;
+int dnButtonLast = HIGH;
+int enterButtonLast = HIGH;
+
+#define BUTTON_HOLD_TIME 3000
+#define BUTTON_HOLD_DELTA 200
+
+int buttonDownStartTime = 0;
+int buttonDownCurrentTime = 0;
+int buttonDownIncrementTime = 0;
+
 
 void setup() 
 {
@@ -253,6 +292,40 @@ void setup()
   display.display();
   delay(2000);
 
+  Serial.println("Tuning Parameters");
+  Serial.print(" Kp = ");
+  Serial.println(Kp);
+  Serial.print(" Ki = ");
+  Serial.println(Ki);
+  Serial.print(" Kd = ");
+  Serial.println(Kd);
+  Serial.print(" Prop on ");
+  if (POn == P_ON_E)
+    Serial.println("Error");
+  else
+    Serial.println("Measure"); 
+
+  displayFrame();
+  display.setCursor(xOffset, yOffset+(0*lineSpacing));
+  display.print("Tuning Parameters");
+  display.setCursor(xOffset, yOffset+(1*lineSpacing));
+  display.print(" Kp = ");
+  display.print(Kp);
+  display.setCursor(xOffset, yOffset+(2*lineSpacing));
+  display.print(" Ki = ");
+  display.print(Ki);
+  display.setCursor(xOffset, yOffset+(3*lineSpacing));
+  display.print(" Kd = ");
+  display.print(Kd);
+  display.setCursor(xOffset, yOffset+(4*lineSpacing));
+  display.print(" Prop on ");
+  if (POn == P_ON_E)
+    display.print("Error");
+  else
+    display.print("Measure"); 
+  display.display();
+  delay(2000);
+
   displayRun();
 
 //For Arduino Mega1280, Mega2560, MegaADK, Spider or any other board using ATmega1280 or ATmega2560
@@ -312,13 +385,16 @@ TCCR0B = TCCR0B & B11111000 | B00000101;    // set timer 0 divisor to  1024 for 
 //TCCR5B = TCCR5B & B11111000 | B00000101;    // set timer 5 divisor to  1024 for PWM frequency of    30.64 Hz
   
 
-  //initialize the variables we're linked to
-  Input = 50.0;
-  Setpoint = 100.0;
 
   //turn the PID on
-  myPID.SetMode(AUTOMATIC);
-
+  for (int i=0; i<4; i++)
+  {
+    //initialize the variables we're linked to
+    Input[i] = 95.0;
+    Setpoint[i] = 100.0;
+    myPID[i].SetMode(AUTOMATIC);
+    myPID[i].SetControllerDirection(DIRECT);
+  }
 }
 
 void displayRun()
@@ -352,11 +428,10 @@ void loop()
   uint8_t fault[4] = {false, false, false, false};
   char separator;
 
-  int menuButton = digitalRead(menuPin);
-  int upButton = digitalRead(upPin);
-  int dnButton = digitalRead(dnPin);
-  int enterButton = digitalRead(enterPin);  
-
+  menuButton = digitalRead(menuPin);
+  upButton = digitalRead(upPin);
+  dnButton = digitalRead(dnPin);
+  enterButton = digitalRead(enterPin);  
 
   switch (currentState)  
   {
@@ -368,7 +443,7 @@ void loop()
       {
         previousEnterButton = false;
         currentState = STATE_SP_WAIT;
-        currentSetPoint = 1;
+        currentSetpoint = 0;
         break;
       }
 
@@ -411,37 +486,40 @@ void loop()
         else
         {
           Serial.print(i+1); Serial.print( " Temp = "); Serial.print(temp[i]); 
-          Serial.print(" Delta "); Serial.println(temp[i] - setPointTemp[i]);      
+          Serial.print(" Delta "); Serial.print(temp[i] - setPointTemp[i]);      
         }
       }
       
 //      delay(1000);
     
-#if 0
       counter++;
       if ((counter & 1) == 1)
+        separator = ':';      
+      else
+        separator = ' '; 
+             
+#if 0
+      if ((counter & 1) == 1)
       {
-        //digitalWrite(HeaterUnit1, HIGH);
-        //digitalWrite(CoolerUnit1, LOW);    
+        digitalWrite(HeaterUnit1, HIGH);
+        digitalWrite(CoolerUnit1, LOW);    
         digitalWrite(HeaterUnit2, HIGH);
         digitalWrite(CoolerUnit2, LOW);    
         digitalWrite(HeaterUnit3, HIGH);
         digitalWrite(CoolerUnit3, LOW);    
         digitalWrite(HeaterUnit4, HIGH);
         digitalWrite(CoolerUnit4, LOW);    
-        separator = ':';      
       }
       else
       {
-        //digitalWrite(HeaterUnit1, LOW);
-        //digitalWrite(CoolerUnit1, HIGH);    
+        digitalWrite(HeaterUnit1, LOW);
+        digitalWrite(CoolerUnit1, HIGH);    
         digitalWrite(HeaterUnit2, LOW);
         digitalWrite(CoolerUnit2, HIGH);    
         digitalWrite(HeaterUnit3, LOW);
         digitalWrite(CoolerUnit3, HIGH);    
         digitalWrite(HeaterUnit4, LOW);
         digitalWrite(CoolerUnit4, HIGH);  
-        separator = ' ';      
       }
 #endif
     
@@ -469,26 +547,35 @@ void loop()
         {
           if (i == 0)
           {
-            Input += 5.0;   //analogRead(0);
-            if (Input > 150.0)
-              Input = 50.0;
-
-            if (Input < Setpoint)
-              myPID.SetControllerDirection(DIRECT);
-            else            
-              myPID.SetControllerDirection(REVERSE);
-
-            myPID.Compute();
-Serial.print("Input = "); Serial.print(Input);Serial.print(", Output = "); Serial.println(Output);            
-            
-            if (Input < Setpoint)
+            Input[i] += DeltaIncrement;   //analogRead(0);
+            if (Input[i] > 105.0)
             {
-              analogWrite(HeaterUnit1,Output); 
+              Input[i] = 105.0;
+              DeltaIncrement = -0.5;
+            }
+            else
+            if (Input[i] < 95.0)
+            {
+              Input[i] = 95.0;
+              DeltaIncrement = 0.5;              
+            }
+
+            if (Input[i] < Setpoint[i])
+              myPID[i].SetControllerDirection(DIRECT);
+            else            
+              myPID[i].SetControllerDirection(REVERSE);
+
+            myPID[i].Compute();
+Serial.print("  Setpoint = "); Serial.print(Setpoint[i]); Serial.print("  Input = "); Serial.print(Input[i]); Serial.print(", Output = "); Serial.println(Output[i]);            
+            
+            if (Input[i] < Setpoint[i])
+            {
+              analogWrite(HeaterUnit1,Output[i]); 
               analogWrite(CoolerUnit1,0); 
             }
             else
             {
-              analogWrite(CoolerUnit1,Output); 
+              analogWrite(CoolerUnit1,Output[i]); 
               analogWrite(HeaterUnit1,0);                         
             }
           }
@@ -516,20 +603,23 @@ Serial.print("Input = "); Serial.print(Input);Serial.print(", Output = "); Seria
       displayFrame();
       display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     
       display.print("SP ");
-      display.print(currentSetPoint);
+      display.print(currentSetpoint+1);
+      display.display();  
       if (menuButton == HIGH)
         currentState = STATE_SP;
       break;
     
     case STATE_SP:
+      displayFrame();
       display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     
       display.print("SP ");
-      display.print(currentSetPoint);
+      display.print(currentSetpoint+1);
+      display.display();  
       if (menuButton == LOW)
       {
         currentState = STATE_SP_WAIT;
-        currentSetPoint++;
-        if (currentSetPoint > 4)
+        currentSetpoint++;
+        if (currentSetpoint >= 4)
           currentState = STATE_CFG_WAIT;         
       }
       else
@@ -538,14 +628,111 @@ Serial.print("Input = "); Serial.print(Input);Serial.print(", Output = "); Seria
       break;
       
     case STATE_SP_ENTER_WAIT:
+      if (enterButton == HIGH)
+      {
+        currentState = STATE_SP_ENTER;
+        SetpointNew = Setpoint[currentSetpoint];
+      }
+      break;
     
     case STATE_SP_ENTER:
+      if (menuButton == LOW)
+        currentState = STATE_SP_WAIT;
+      else
+      if (upButton == LOW)
+      {
+        SetpointNew += 0.1;
+        buttonDownIncrementTime = 0;
+        currentState = STATE_SP_ENTER_UP_WAIT;
+      }
+      else
+      if (dnButton == LOW)
+      {
+        SetpointNew -= 0.1;
+        buttonDownStartTime = millis();
+        buttonDownIncrementTime = 0;
+        currentState = STATE_SP_ENTER_DN_WAIT;
+      }
+      else
+      if (enterButton == LOW)
+        currentState = STATE_SP_UPDATE_WAIT;
+        
+      displayFrame();
+      display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     
+      display.print("SP ");
+      display.print(currentSetpoint+1);
+      display.setCursor(xOffset+(2*(5+1)), yOffset+(2*lineSpacing));     
+      display.print(SetpointNew);
+      display.display();  
+      break;
     
     case STATE_SP_ENTER_UP_WAIT:
+      if (upButton == HIGH)
+        currentState = STATE_SP_ENTER;
+      else
+      {
+        buttonDownCurrentTime = millis();
+        if (buttonDownCurrentTime > (buttonDownStartTime + BUTTON_HOLD_TIME))
+        {
+          if (buttonDownIncrementTime == 0 ||
+              buttonDownCurrentTime > (buttonDownIncrementTime + BUTTON_HOLD_DELTA))
+          {
+            SetpointNew += 0.1;
+            buttonDownIncrementTime = buttonDownCurrentTime;
+          }
+        }
+      }
+      displayFrame();
+      display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     
+      display.print("SP ");
+      display.print(currentSetpoint+1);
+      display.setCursor(xOffset+(2*(5+1)), yOffset+(2*lineSpacing));     
+      display.print(SetpointNew);
+      display.display();  
+      break;
     
     case STATE_SP_ENTER_DN_WAIT:
+      if (dnButton == HIGH)
+        currentState = STATE_SP_ENTER;
+      else
+      {
+        buttonDownCurrentTime = millis();
+        if (buttonDownCurrentTime > (buttonDownStartTime + BUTTON_HOLD_TIME))
+        {
+          if (buttonDownIncrementTime == 0 ||
+              buttonDownCurrentTime > (buttonDownIncrementTime + BUTTON_HOLD_DELTA))
+          {
+            SetpointNew -= 0.1;
+            buttonDownIncrementTime = buttonDownCurrentTime;
+          }
+        }
+      }
+      displayFrame();
+      display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     
+      display.print("SP ");
+      display.print(currentSetpoint+1);
+      display.setCursor(xOffset+(2*(5+1)), yOffset+(2*lineSpacing));     
+      display.print(SetpointNew);
+      display.display();  
+      break;
     
     case STATE_SP_UPDATE_WAIT:
+      displayFrame();
+      display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     
+      display.print("SP ");
+      display.print(currentSetpoint+1);
+      display.setCursor(xOffset+(2*(5+1)), yOffset+(2*lineSpacing));     
+      display.print(F("StRd"));
+      display.display();  
+      if (enterButton == HIGH)
+      {
+        Setpoint[currentSetpoint] = SetpointNew;
+        currentState = STATE_SP;
+        currentSetpoint++;
+        if (currentSetpoint >= 4)
+          currentState = STATE_CFG_WAIT;         
+      }
+      break;
 
     
     case STATE_CFG_WAIT:
