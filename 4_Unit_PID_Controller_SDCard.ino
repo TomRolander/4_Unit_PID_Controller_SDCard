@@ -3,7 +3,7 @@
  4xTomPort PID Controller
  **************************************************************************/
 
-#define VERSION "Ver 0.2 2019-05-16"
+#define VERSION "Ver 0.3 2019-05-20"
 
 
 int maxRTD=1;
@@ -19,14 +19,14 @@ int maxRTD=1;
 #include <PID_v1.h>
 
 //Define Variables we'll be connecting to
-double Setpoint[4] = {100.0, 100.0, 100.0, 100.0};
+double Setpoint[4] = {22.0, 22.0, 22.0, 22.0};
 double Input[4] = {100.0, 100.0, 100.0, 100.0};
 double Output[4] = {0.0, 0.0, 0.0, 0.0};
 
 double SetpointNew;
 
 double prevTemp[4] = {0.0, 0.0, 0.0, 0.0};
-double setPointTemp[4] = {24.00, 25.00, 26.00, 27.00};
+//double setPointTemp[4] = {24.00, 25.00, 26.00, 27.00};
 
 int Kp = 2;
 int Ki = 5;
@@ -107,6 +107,8 @@ int counter = 0;
 
 int prevHour = 0;
 int prevMin = 0;
+
+int prev10Sec = 0;
 
 
 // SD Card used for data logging
@@ -412,7 +414,7 @@ void displayRun()
     display.setCursor(xOffset, yOffset+(i*lineSpacing));
     display.print(i);
     display.print("       ");
-    display.print(setPointTemp[i-1]);
+    display.print(Setpoint[i-1]);
   }
   display.display();  
 }
@@ -422,8 +424,9 @@ void loop()
   now = rtc.now();
   int currentHour = now.hour();
   int currentMin  = now.minute();
-  float temp[4] = {0.0, 0.0, 0.0, 0.0};
-  float delta[4] = {0.0, 0.0, 0.0, 0.0};
+  int currentSec  = now.second();
+  double temp[4] = {0.0, 0.0, 0.0, 0.0};
+  double delta[4] = {0.0, 0.0, 0.0, 0.0};
   uint8_t fault[4] = {false, false, false, false};
   char separator;
 
@@ -448,7 +451,13 @@ void loop()
 
       for (int i=0; i<maxRTD; i++)
       {
-       uint16_t rtd = max[i].readRTD();
+        // Update the Setpoint from the table
+        int index = (currentHour*10) + ((currentMin*10)/60);
+        Setpoint[i] = double(Setpoints_Thousandths[i][index]) / 1000.0;
+        //Serial.print("Setpoint: ");
+        //Serial.println(Setpoint[i],3);
+        
+        uint16_t rtd = max[i].readRTD();
       
       //  Serial.print("RTD value: "); Serial.println(rtd);
         float ratio = rtd;
@@ -485,7 +494,7 @@ void loop()
         else
         {
           Serial.print(i+1); Serial.print( " Temp = "); Serial.print(temp[i]); 
-          Serial.print(" Delta "); Serial.print(temp[i] - setPointTemp[i]);      
+          Serial.print(" Delta "); Serial.print(temp[i] - Setpoint[i]);      
         }
       }
       
@@ -497,31 +506,6 @@ void loop()
       else
         separator = ' '; 
              
-#if 0
-      if ((counter & 1) == 1)
-      {
-        digitalWrite(HeaterUnit1, HIGH);
-        digitalWrite(CoolerUnit1, LOW);    
-        digitalWrite(HeaterUnit2, HIGH);
-        digitalWrite(CoolerUnit2, LOW);    
-        digitalWrite(HeaterUnit3, HIGH);
-        digitalWrite(CoolerUnit3, LOW);    
-        digitalWrite(HeaterUnit4, HIGH);
-        digitalWrite(CoolerUnit4, LOW);    
-      }
-      else
-      {
-        digitalWrite(HeaterUnit1, LOW);
-        digitalWrite(CoolerUnit1, HIGH);    
-        digitalWrite(HeaterUnit2, LOW);
-        digitalWrite(CoolerUnit2, HIGH);    
-        digitalWrite(HeaterUnit3, LOW);
-        digitalWrite(CoolerUnit3, HIGH);    
-        digitalWrite(HeaterUnit4, LOW);
-        digitalWrite(CoolerUnit4, HIGH);  
-      }
-#endif
-    
       if (prevHour != currentHour || prevMin != currentMin)
       {
         display.fillRect(xOffset+(14*(5+1)), yOffset+0,5*(5+1),8,BLACK);
@@ -546,6 +530,7 @@ void loop()
         {
           if (i == 0)
           {
+ #if 0
             Input[i] += DeltaIncrement;   //analogRead(0);
             if (Input[i] > 105.0)
             {
@@ -558,14 +543,30 @@ void loop()
               Input[i] = 95.0;
               DeltaIncrement = 0.5;              
             }
+#endif
 
+            if (prev10Sec != currentSec/10)
+            {
+                prev10Sec = currentSec/10;
+                SDLogging("Temp1", temp[i]);
+            }
+
+            Input[i] = temp[i];
+
+            char *strHeatingOrCooling;
             if (Input[i] < Setpoint[i])
+            {
               myPID[i].SetControllerDirection(DIRECT);
-            else            
+              strHeatingOrCooling = "Heating";
+           }
+            else
+            {            
               myPID[i].SetControllerDirection(REVERSE);
+              strHeatingOrCooling = "Cooling";
+            }
 
             myPID[i].Compute();
-Serial.print("  Setpoint = "); Serial.print(Setpoint[i]); Serial.print("  Input = "); Serial.print(Input[i]); Serial.print(", Output = "); Serial.println(Output[i]);            
+Serial.print("  Setpoint = "); Serial.print(Setpoint[i]); Serial.print("  Input = "); Serial.print(Input[i]); Serial.print(", "); Serial.print(strHeatingOrCooling); Serial.print(", Output = "); Serial.println(Output[i]);            
             
             if (Input[i] < Setpoint[i])
             {
@@ -586,7 +587,7 @@ Serial.print("  Setpoint = "); Serial.print(Setpoint[i]); Serial.print("  Input 
             display.setCursor(xOffset+(2*(5+1)), yOffset+((i+1)*lineSpacing));
             display.print(temp[i]);
     
-            delta[i] = temp[i] - setPointTemp[i];
+            delta[i] = temp[i] - Setpoint[i];
             display.fillRect(xOffset+(14*(5+1)), yOffset+((i+1)*lineSpacing),5*(5+1),8,BLACK);
             display.setCursor(xOffset+(14*(5+1)), yOffset+((i+1)*lineSpacing));
             if (delta[i] >= 0.0)
@@ -991,8 +992,14 @@ void SetupSDCardOperations()
         
         if (fileSDCard.available())
         {
-          ReadSetpoints(&Setpoints_Thousandths[iUnit-1][0]);        
-          
+          ReadSetpoints(&Setpoints_Thousandths[iUnit-1][0]);   
+
+          now = rtc.now();
+          int currentHour = now.hour();
+          int currentMin  = now.minute();
+          int index = (currentHour*10) + ((currentMin*10)/60);
+          Setpoint[iUnit-1] = double(Setpoints_Thousandths[iUnit-1][index]) / 1000.0;
+                       
           display.print("* processed *");
           display.display();
           delay(2000);      
@@ -1026,7 +1033,7 @@ void SetupSDCardOperations()
     fileSDCard = SD.open("LOGGING.CSV", FILE_WRITE);
     if (fileSDCard) 
     {
-      fileSDCard.println("\"Date\",\"Time\",\"Dout\",\"Din\",\"Status\"");
+      fileSDCard.println("\"Date\",\"Time\",\"Status\",\"Temp\"");
       fileSDCard.close();
     }
     else
@@ -1050,10 +1057,10 @@ void SetupSDCardOperations()
   display.display();
   delay(2000);
   
-  OledDisplayStatusUpdate_SDLogging("Start Up");
+  SDLogging("Start Up", 0.0);
 }
 
-void OledDisplayStatusUpdate_SDLogging(char *status)
+void OledDisplayStatusUpdate_SDLogging(char *status, double value)
 {
   displayFrame();
   display.setCursor(xOffset, yOffset+(1*lineSpacing));
@@ -1062,7 +1069,7 @@ void OledDisplayStatusUpdate_SDLogging(char *status)
   display.print(status);
 
   now = rtc.now();
-
+#if 0
   Serial.print("STATUS: ");
   Serial.print(status);
   Serial.print("  ");
@@ -1071,7 +1078,7 @@ void OledDisplayStatusUpdate_SDLogging(char *status)
   Serial.print(now.minute());
   Serial.print(":");
   Serial.println(now.second());
-
+#endif
   display.setCursor(xOffset, yOffset+(3*lineSpacing));
   display.print(" ");
   OledDisplayPrintTwoDigits(now.hour());
@@ -1080,7 +1087,7 @@ void OledDisplayStatusUpdate_SDLogging(char *status)
   display.print(":");
   OledDisplayPrintTwoDigits(now.second());   
   display.display();
-  delay(2000);
+//  delay(2000);
   
   if (!SD.begin(chipSelectSDCard)) 
   {
@@ -1115,11 +1122,65 @@ void OledDisplayStatusUpdate_SDLogging(char *status)
       fileSDCard.print(":");
       fileSDCard.print(now.second(), DEC);
       fileSDCard.print(",");
-//      SDPrintBinary(digitalOutputState,5);
+      fileSDCard.print(status);
       fileSDCard.print(",");
-//      SDPrintBinary(digitalInputState_Saved,4);
+      fileSDCard.print(value);
+      fileSDCard.println("");
+      fileSDCard.close();
+      SD.end();
+    } 
+    else 
+    {
+      // if the file didn't open, display an error:
+      displayFrame();
+      display.setCursor(xOffset, yOffset+(1*lineSpacing));
+      display.print("*** ERROR ***   ");
+      display.setCursor(xOffset, yOffset+(2*lineSpacing));
+      display.print("Open LOGGING.CSV");
+      display.display();
+      delay(2000);
+    }  
+  }
+}
+
+void SDLogging(char *status, double value)
+{
+  if (!SD.begin(chipSelectSDCard)) 
+  {
+    bSDLogFail = true;
+    iToggle++;
+    if ((iToggle & B00000001) == 0)
+    {
+      display.setCursor(xOffset, yOffset+(2*lineSpacing));
+      display.print("SD LogFail");
+    }
+    return;
+  }
+  bSDLogFail = false;
+  iToggle = 0;
+
+//  if ((strcmp((const char*) status, "") != 0) || bForceOneMinuteLogging)
+  {
+    fileSDCard = SD.open("LOGGING.CSV", FILE_WRITE);
+  
+    // if the file opened okay, write to it:
+    if (fileSDCard) 
+    {
+      fileSDCard.print(now.year(), DEC);
+      fileSDCard.print("/");
+      fileSDCard.print(now.month(), DEC);
+      fileSDCard.print("/");
+      fileSDCard.print(now.day(), DEC);
+      fileSDCard.print(",");
+      fileSDCard.print(now.hour(), DEC);
+      fileSDCard.print(":");
+      fileSDCard.print(now.minute(), DEC);
+      fileSDCard.print(":");
+      fileSDCard.print(now.second(), DEC);
       fileSDCard.print(",");
       fileSDCard.print(status);
+      fileSDCard.print(",");
+      fileSDCard.print(value);
       fileSDCard.println("");
       fileSDCard.close();
       SD.end();
