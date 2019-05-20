@@ -8,7 +8,6 @@
 
 int maxRTD=1;
 
-
 /********************************************************
  * PID Proportional on measurement Example
  * Setting the PID to use Proportional on measurement will 
@@ -49,7 +48,7 @@ PID myPID[4] = {
   PID(&Input[3], &Output[3], &Setpoint[3], Kp, Ki, Kd, POn, Direction[3])
 };
 
-double SetpointRamp[4][240];
+unsigned int Setpoints_Thousandths[4][240];
 
 double DeltaIncrement = 0.5;
 
@@ -722,7 +721,7 @@ Serial.print("  Setpoint = "); Serial.print(Setpoint[i]); Serial.print("  Input 
       display.print("SP ");
       display.print(currentSetpoint+1);
       display.setCursor(xOffset+(2*(5+1)), yOffset+(2*lineSpacing));     
-      display.print(F("StRd"));
+      display.print("StRd");
       display.display();  
       if (enterButton == HIGH)
       {
@@ -799,11 +798,14 @@ void SetupSDCardOperations()
     display.print("*** ERROR ***   ");
     display.setCursor(xOffset, yOffset+(2*lineSpacing));
     display.print("SD Init Failed  ");
+    display.setCursor(xOffset, yOffset+(2*lineSpacing));
+    display.print("System HALTED!");
     display.display();
     while (1);
   }
-
   delay(2000);
+
+  
   displayFrame();
   display.setCursor(xOffset, yOffset+(1*lineSpacing));
   display.print("* Test CLOCK.CSV");
@@ -894,7 +896,123 @@ void SetupSDCardOperations()
   }
   delay(2000);
 
-// open the file for reading:
+// CONTROL.CSV Processing
+  displayFrame();
+  display.setCursor(xOffset, yOffset+(1*lineSpacing));
+  display.print("* Test CONTROL.CSV");
+  display.setCursor(xOffset, yOffset+(2*lineSpacing));
+  if (SD.exists("CONTROL.CSV")) 
+  {
+    fileSDCard = SD.open("CONTROL.CSV");
+    if (fileSDCard) 
+    {
+      char *ptr3 = 0;
+      
+      if (fileSDCard.available())
+      {
+        char strControlSetting[256];
+        char strControlSettingCopy[256];
+        fileSDCard.read(strControlSetting, sizeof(strControlSetting));
+        fileSDCard.close();
+        strControlSetting[sizeof(strControlSetting)-1] = '\0';
+        char *ptr1 = strchr(&strControlSetting[0],'\n');
+        if (ptr1 != 0)
+        {
+            *ptr1++ = '\0';
+        }
+        Serial.println("Set Control:");
+        Serial.println(strControlSetting);
+
+        ptr3 = strchr(ptr1,'\n');
+        if (ptr3 != 0)
+        {
+            *ptr3++ = '\0';
+            strcpy(strControlSettingCopy, ptr1);
+        }
+        Serial.println(ptr1);
+        
+        int iControl[4] = {0,0,0,0};
+        for (int i=0; i<4; i++)
+        {
+          char *ptr2 = strchr(ptr1,',');
+          if (ptr2 != 0)
+          {
+            *ptr2 = '\0';
+            iControl[i] = atoi(ptr1);
+            ptr1 = &ptr2[1];
+          }
+          else
+          {
+            if (i == 3)
+              iControl[3] = atoi(ptr1);
+            break;
+          }
+        }
+        Kp = iControl[0];
+        Ki = iControl[1];
+        Kd = iControl[2];
+        POn = iControl[3];
+        
+        display.print("* processed *");
+        display.display();
+        delay(2000);      
+      }
+      else
+      {
+        fileSDCard.close();
+      }
+    }    
+  }
+  else 
+  {
+    display.print("* does not exist");
+    display.display();
+  }
+  delay(2000);
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+// SETPNTx.CSV Processing
+  for (int iUnit=1; iUnit<=maxRTD; iUnit++)
+  {
+    char szSETPNTx[] = "SETPNTx.CSV";
+    szSETPNTx[6] = '0'+iUnit;
+    displayFrame();
+    display.setCursor(xOffset, yOffset+(1*lineSpacing));
+    display.print("* Test ");
+    display.print(szSETPNTx);
+    display.setCursor(xOffset, yOffset+(2*lineSpacing));
+    if (SD.exists(szSETPNTx)) 
+    {
+      fileSDCard = SD.open(szSETPNTx);
+      if (fileSDCard) 
+      {
+        char *ptr3 = 0;
+        
+        if (fileSDCard.available())
+        {
+          ReadSetpoints(&Setpoints_Thousandths[iUnit-1][0]);        
+          
+          display.print("* processed *");
+          display.display();
+          delay(2000);      
+        }
+        else
+        {
+          fileSDCard.close();
+        }
+      }    
+    }
+    else 
+    {
+      display.print("* does not exist");
+      display.display();
+    }
+    delay(2000);
+  }
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  // LOGGING.CSV file processing
   fileSDCard = SD.open("LOGGING.CSV");
   if (fileSDCard) 
   {
@@ -1025,4 +1143,61 @@ void OledDisplayPrintTwoDigits(int iVal)
   if (iVal < 10)
     display.print("0");
   display.print(iVal, DEC);
+}
+
+bool readLine(char* line, size_t maxLen) {
+  for (size_t n = 0; n < maxLen; n++) {
+    int c = fileSDCard.read();
+    if ( c < 0 && n == 0) return false;  // EOF
+    if (c < 0 || c == '\n') {
+      line[n] = 0;
+      return true;
+    }
+    line[n] = c;
+  }
+  return false; // line too long
+}
+
+bool readVals(int* iHour, int* iMinute, double* temp) {
+  char line[40], *ptr, *str;
+  if (!readLine(line, sizeof(line))) {
+    return false;  // EOF or too long
+  }
+  ptr = &line[0];
+  *iHour = atoi(ptr);
+  while (*ptr) {
+    if (*ptr++ == ':') break;
+  }
+  *iMinute = atoi(ptr);
+  while (*ptr) {
+    if (*ptr++ == ',') break;
+  }
+  *temp = strtod(ptr, &str);
+  return str != ptr;  // true if number found
+}
+
+void ReadSetpoints(unsigned int* Setpoints_Thousandths)
+{
+  int iHour, iMinute;
+  int index;
+  double temp;
+  long iThousandths;
+
+  while (readVals(&iHour, &iMinute, &temp)) {
+    iThousandths = (unsigned int) (temp*1000.0);
+    index = (iHour*10) + ((iMinute*10)/60);
+    Setpoints_Thousandths[index] = iThousandths; 
+#if 0
+    Serial.print("Hr: ");
+    Serial.print(iHour);
+    Serial.print(" Mn: ");
+    Serial.print(iMinute);
+    Serial.print(" Temp: ");
+    Serial.print(temp,3);
+    Serial.print(" iThousandths: ");
+    Serial.print(iThousandths);
+    Serial.print(" Index: ");
+    Serial.println(index);
+#endif
+  }
 }
