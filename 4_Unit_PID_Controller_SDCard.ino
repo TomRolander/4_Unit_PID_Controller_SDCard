@@ -28,9 +28,16 @@ double SetpointNew;
 double prevTemp[4] = {0.0, 0.0, 0.0, 0.0};
 //double setPointTemp[4] = {24.00, 25.00, 26.00, 27.00};
 
-int Kp = 2;
-int Ki = 5;
-int Kd = 1;
+double Kp = 2;
+double Ki = 5;
+double Kd = 1;
+
+// From: https://www.diva-portal.org/smash/get/diva2:678519/FULLTEXT01.pdf
+#if 0
+double Kp = 14.4;
+double Ki = 6;
+double Kd = 1.5;
+#endif 
 
 int POn = P_ON_E;
 int Direction[4] = {DIRECT, DIRECT, DIRECT, DIRECT};
@@ -548,18 +555,29 @@ void loop()
             Input[i] = temp[i];
 
             char *strHeatingOrCooling;
-            if (Input[i] < Setpoint[i])
+            double gap = abs(Setpoint[i]-Input[i]); //distance away from setpoint
+
+            if (gap <= 0.1)
             {
-              myPID[i].SetControllerDirection(DIRECT);
-              strHeatingOrCooling = "Heating";
-           }
+              // PWM of 0 when within 0.1C
+              analogWrite(CoolerUnit1,0); 
+              analogWrite(HeaterUnit1,0);                         
+              strHeatingOrCooling = "OFF";
+            }
             else
             {            
-              myPID[i].SetControllerDirection(REVERSE);
-              strHeatingOrCooling = "Cooling";
+              if (Input[i] < Setpoint[i])
+              {
+                myPID[i].SetControllerDirection(DIRECT);
+                strHeatingOrCooling = "Heating";
+              }
+              else
+              {            
+                myPID[i].SetControllerDirection(REVERSE);
+                strHeatingOrCooling = "Cooling";
+              }
+              myPID[i].Compute();
             }
-
-            myPID[i].Compute();
             Serial.print("  Setpoint = "); Serial.print(Setpoint[i]); Serial.print(", "); 
             Serial.print(strHeatingOrCooling); 
             Serial.print(", Output = "); Serial.print(Output[i]);
