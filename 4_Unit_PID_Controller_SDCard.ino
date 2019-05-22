@@ -560,6 +560,7 @@ void loop()
             if (gap <= 0.1)
             {
               // PWM of 0 when within 0.1C
+              Output[i] = 0.0;
               analogWrite(CoolerUnit1,0); 
               analogWrite(HeaterUnit1,0);                         
               strHeatingOrCooling = "OFF";
@@ -590,15 +591,18 @@ void loop()
                 SDLogging("Temp1", Setpoint[i], temp[i], (temp[i] - Setpoint[i]), Output[i], strHeatingOrCooling);
             }
 
-            if (Input[i] < Setpoint[i])
+            if (gap > 0.1)
             {
-              analogWrite(HeaterUnit1,Output[i]); 
-              analogWrite(CoolerUnit1,0); 
-            }
-            else
-            {
-              analogWrite(CoolerUnit1,Output[i]); 
-              analogWrite(HeaterUnit1,0);                         
+              if (Input[i] < Setpoint[i])
+              {
+                analogWrite(HeaterUnit1,Output[i]); 
+                analogWrite(CoolerUnit1,0); 
+              }
+              else
+              {
+                analogWrite(CoolerUnit1,Output[i]); 
+                analogWrite(HeaterUnit1,0);                         
+              }
             }
           }
           
