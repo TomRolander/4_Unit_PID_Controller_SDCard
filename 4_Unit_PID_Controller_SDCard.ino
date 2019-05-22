@@ -560,7 +560,11 @@ void loop()
             }
 
             myPID[i].Compute();
-Serial.print("  Setpoint = "); Serial.print(Setpoint[i]); Serial.print(", "); Serial.print(strHeatingOrCooling); Serial.print(", Output = "); Serial.println(Output[i]);            
+            Serial.print("  Setpoint = "); Serial.print(Setpoint[i]); Serial.print(", "); 
+            Serial.print(strHeatingOrCooling); 
+            Serial.print(", Output = "); Serial.print(Output[i]);
+            double DutyCycle = (Output[i]/255.0)*100;
+            Serial.print(", DutyCycle = "); Serial.print(DutyCycle); Serial.println("%");
             
             if (prev10Sec != currentSec/10)
             {
@@ -1038,7 +1042,7 @@ void SetupSDCardOperations()
     fileSDCard = SD.open("LOGGING.CSV", FILE_WRITE);
     if (fileSDCard) 
     {
-      fileSDCard.println("\"Date\",\"Time\",\"Status\",\"Setpt\",\"Temp\",\"Delta\",\"Output\",\"Dir\"");
+      fileSDCard.println("\"Date\",\"Time\",\"Status\",\"Setpt\",\"Temp\",\"Delta\",\"Output\",\"DutyCycle\",\"Dir\"");
       fileSDCard.close();
     }
     else
@@ -1069,6 +1073,7 @@ void SDLogging(char *status, double setpoint, double temp, double delta, double 
 {
   if (!SD.begin(chipSelectSDCard)) 
   {
+#if 0
     bSDLogFail = true;
     iToggle++;
     if ((iToggle & B00000001) == 0)
@@ -1076,6 +1081,7 @@ void SDLogging(char *status, double setpoint, double temp, double delta, double 
       display.setCursor(xOffset, yOffset+(2*lineSpacing));
       display.print("SD LogFail");
     }
+#endif
     return;
   }
   bSDLogFail = false;
@@ -1110,6 +1116,9 @@ void SDLogging(char *status, double setpoint, double temp, double delta, double 
       fileSDCard.print(",");
       fileSDCard.print(output);
       fileSDCard.print(",");
+      double DutyCycle = (output/255.0)*100.0;
+      fileSDCard.print(DutyCycle);
+      fileSDCard.print("%,");
       fileSDCard.print(strDir);
       fileSDCard.println("");
       fileSDCard.close();
