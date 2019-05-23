@@ -3,10 +3,12 @@
  4xTomPort PID Controller
  **************************************************************************/
 
-#define VERSION "Ver 0.4 2019-05-21"
+#define VERSION "Ver 0.4 2019-05-23"
 
 
 int maxRTD=1;
+
+#define DELAY_BETWEEN_UPDATES 10000
 
 /********************************************************
  * PID Proportional on measurement Example
@@ -205,6 +207,7 @@ void setup()
   Wire.begin();
   
   Serial.begin(9600);
+  Serial.println("");
   Serial.println("Serial Initialized...");
 
   for (int i=0; i<maxRTD; i++) {
@@ -500,6 +503,22 @@ void loop()
         }
         else
         {
+          Serial.print(now.year(), DEC);
+          Serial.print("/");
+          Serial.print(now.month(), DEC);
+          Serial.print("/");
+          Serial.print(now.day(), DEC);
+          Serial.print(" ");
+          if (now.hour() < 10) Serial.print("0");
+          Serial.print(now.hour(), DEC);
+          Serial.print(":");
+          if (now.minute() < 10) Serial.print("0");
+          Serial.print(now.minute(), DEC);
+          Serial.print(":");
+          if (now.second() < 10) Serial.print("0");
+          Serial.print(now.second(), DEC);
+          Serial.print(" ");
+          
           Serial.print(i+1); Serial.print( " Temp = "); Serial.print(temp[i]); 
           Serial.print(" Delta "); Serial.print(temp[i] - Setpoint[i]);      
         }
@@ -563,25 +582,25 @@ void loop()
               Output[i] = 0.0;
               analogWrite(CoolerUnit1,0); 
               analogWrite(HeaterUnit1,0);                         
-              strHeatingOrCooling = "OFF";
+              strHeatingOrCooling = "OFF ";
             }
             else
             {            
               if (Input[i] < Setpoint[i])
               {
                 myPID[i].SetControllerDirection(DIRECT);
-                strHeatingOrCooling = "Heating";
+                strHeatingOrCooling = "Heat";
               }
               else
               {            
                 myPID[i].SetControllerDirection(REVERSE);
-                strHeatingOrCooling = "Cooling";
+                strHeatingOrCooling = "Cool";
               }
               myPID[i].Compute();
             }
             Serial.print("  Setpoint = "); Serial.print(Setpoint[i]); Serial.print(", "); 
             Serial.print(strHeatingOrCooling); 
-            Serial.print(", Output = "); Serial.print(Output[i]);
+//            Serial.print(", Output = "); Serial.print(Output[i]);
             double DutyCycle = (Output[i]/255.0)*100;
             Serial.print(", DutyCycle = "); Serial.print(DutyCycle); Serial.println("%");
             
@@ -802,6 +821,8 @@ void loop()
   }
 
   display.display();
+
+//  delay(DELAY_BETWEEN_UPDATES);
 }
 
 void displayFrame()
