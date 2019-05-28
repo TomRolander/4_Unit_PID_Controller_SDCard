@@ -28,6 +28,7 @@ double Output[4] = {0.0, 0.0, 0.0, 0.0};
 double SetpointNew;
 
 double prevTemp[4] = {0.0, 0.0, 0.0, 0.0};
+double prevSetpoint[4] = {31.0, 31.0, 31.0, 31.0};
 //double setPointTemp[4] = {24.00, 25.00, 26.00, 27.00};
 
 double Kp = 2;
@@ -639,6 +640,16 @@ void loop()
               display.print('+');
             display.print(delta[i]);      
           } 
+
+          if (Setpoint[i] != prevSetpoint[i])
+          {
+            display.fillRect(xOffset+(8*(5+1)), yOffset+((i+1)*lineSpacing),5*(5+1),8,BLACK);
+            display.setCursor(xOffset+(8*(5+1)), yOffset+((i+1)*lineSpacing));
+            display.print(Setpoint[i-1]);
+            display.display();
+            prevTemp[i] = 0.0;  // force temp update 
+            prevSetpoint[i] = Setpoint[i]; 
+          }
        }
       } 
       display.display();  
