@@ -120,8 +120,6 @@ int counter = 0;
 int prevHour = 0;
 int prevMin = 0;
 
-int prev10Sec = 0;
-
 
 // SD Card used for data logging
 #include <SD.h>
@@ -178,6 +176,9 @@ int  iToggle = 0;
 #define STATE_LO_VALY_FINISH      21
 #define STATE_STBY                22
 
+int HeaterUnits[4] = {HeaterUnit1, HeaterUnit2, HeaterUnit3, HeaterUnit4};
+int CoolerUnits[4] = {CoolerUnit1, CoolerUnit2, CoolerUnit3, CoolerUnit4};
+
 int currentState = STATE_RUN;
 int currentSetpoint = 0;
 int lastState = 0;
@@ -217,25 +218,6 @@ void setup()
     max[i].begin(MAX31865_3WIRE);  // set to 2WIRE or 4WIRE as necessary
   }
 
-#if 0
-//  pinMode(HeaterUnit1, OUTPUT);
-//  digitalWrite(HeaterUnit1, LOW);    
-//  pinMode(CoolerUnit1, OUTPUT);
-//  digitalWrite(CoolerUnit1, LOW);    
-  pinMode(HeaterUnit2, OUTPUT);
-  digitalWrite(HeaterUnit2, LOW);    
-  pinMode(CoolerUnit2, OUTPUT);
-  digitalWrite(CoolerUnit2, LOW);    
-  pinMode(HeaterUnit3, OUTPUT);
-  digitalWrite(HeaterUnit3, LOW);    
-  pinMode(CoolerUnit3, OUTPUT);
-  digitalWrite(CoolerUnit3, LOW);    
-  pinMode(HeaterUnit4, OUTPUT);
-  digitalWrite(HeaterUnit4, LOW);    
-  pinMode(CoolerUnit4, OUTPUT);
-  digitalWrite(CoolerUnit4, LOW);    
-#endif
-  
   pinMode(menuPin, INPUT_PULLUP);
   pinMode(upPin, INPUT_PULLUP);
   pinMode(dnPin, INPUT_PULLUP);
@@ -440,41 +422,7 @@ void loop()
   int currentSec  = now.second();
 
   unsigned long timeCurrent = millis();
-  
-  if ((timeCurrent - timeLastPID) < DELAY_BETWEEN_UPDATES)
-  {
-    char separator;
-    counter++;
-    if ((counter & 1) == 1)
-      separator = ':';      
-    else
-      separator = ' '; 
-           
-    if (prevHour != currentHour || prevMin != currentMin)
-    {
-      display.fillRect(xOffset+(14*(5+1)), yOffset+0,5*(5+1),8,BLACK);
-      display.setCursor(xOffset+(14*(5+1)), yOffset+0);     
-      OledDisplayPrintTwoDigits(now.hour());
-      display.print(separator);
-      OledDisplayPrintTwoDigits(now.minute());
-      prevHour = currentHour;
-      prevMin = currentMin;
-    }
-    else
-    {
-      display.fillRect(xOffset+(16*(5+1)), yOffset+0,1*(5+1),8,BLACK);
-      display.setCursor(xOffset+(16*(5+1)), yOffset+0);     
-      display.print(separator);    
-    }
-    display.display();
-      
-    delay(100);
-    return;    
-  }
-
-  timeLastPID = timeCurrent;
-
-  
+    
   double temp[4] = {0.0, 0.0, 0.0, 0.0};
   double delta[4] = {0.0, 0.0, 0.0, 0.0};
   uint8_t fault[4] = {false, false, false, false};
@@ -497,6 +445,39 @@ void loop()
         currentSetpoint = 0;
         break;
       }
+
+      if ((timeCurrent - timeLastPID) < DELAY_BETWEEN_UPDATES)
+      {
+        char separator;
+        counter++;
+        if ((counter & 1) == 1)
+          separator = ':';      
+        else
+          separator = ' '; 
+               
+        if (prevHour != currentHour || prevMin != currentMin)
+        {
+          display.fillRect(xOffset+(14*(5+1)), yOffset+0,5*(5+1),8,BLACK);
+          display.setCursor(xOffset+(14*(5+1)), yOffset+0);     
+          OledDisplayPrintTwoDigits(now.hour());
+          display.print(separator);
+          OledDisplayPrintTwoDigits(now.minute());
+          prevHour = currentHour;
+          prevMin = currentMin;
+        }
+        else
+        {
+          display.fillRect(xOffset+(16*(5+1)), yOffset+0,1*(5+1),8,BLACK);
+          display.setCursor(xOffset+(16*(5+1)), yOffset+0);     
+          display.print(separator);    
+        }
+        display.display();
+          
+        delay(100);
+        return;    
+      }
+    
+      timeLastPID = timeCurrent;
 
       for (int i=0; i<maxRTD; i++)
       {
@@ -570,84 +551,59 @@ void loop()
           Serial.print(i+1); Serial.print( " Temp = "); Serial.print(temp[i]); 
           Serial.print(" Delta "); Serial.print(temp[i] - Setpoint[i]);      
         }
-      }
-      
-      for (int i=0; i<maxRTD; i++)
-      {
+
         if (fault[i])
         {
             ;
         }
         else
         {
-          if (i == 0)
+          Input[i] = temp[i];
+
+          char *strHeatingOrCooling;
+          double gap = abs(Setpoint[i]-Input[i]); //distance away from setpoint
+
+          if (gap <= 0.1)
           {
- #if 0
-            Input[i] += DeltaIncrement;   //analogRead(0);
-            if (Input[i] > 105.0)
+            // PWM of 0 when within 0.1C
+            Output[i] = 0.0;
+            analogWrite(CoolerUnits[i],0); 
+            analogWrite(HeaterUnits[i],0);                         
+            strHeatingOrCooling = "OFF ";
+          }
+          else
+          {            
+            if (Input[i] < Setpoint[i])
             {
-              Input[i] = 105.0;
-              DeltaIncrement = -0.5;
-            }
-            else
-            if (Input[i] < 95.0)
-            {
-              Input[i] = 95.0;
-              DeltaIncrement = 0.5;              
-            }
-#endif
-
-            Input[i] = temp[i];
-
-            char *strHeatingOrCooling;
-            double gap = abs(Setpoint[i]-Input[i]); //distance away from setpoint
-
-            if (gap <= 0.1)
-            {
-              // PWM of 0 when within 0.1C
-              Output[i] = 0.0;
-              analogWrite(CoolerUnit1,0); 
-              analogWrite(HeaterUnit1,0);                         
-              strHeatingOrCooling = "OFF ";
+              myPID[i].SetControllerDirection(DIRECT);
+              strHeatingOrCooling = "Heat";
             }
             else
             {            
-              if (Input[i] < Setpoint[i])
-              {
-                myPID[i].SetControllerDirection(DIRECT);
-                strHeatingOrCooling = "Heat";
-              }
-              else
-              {            
-                myPID[i].SetControllerDirection(REVERSE);
-                strHeatingOrCooling = "Cool";
-              }
-              myPID[i].Compute();
+              myPID[i].SetControllerDirection(REVERSE);
+              strHeatingOrCooling = "Cool";
             }
-            Serial.print("  Setpoint = "); Serial.print(Setpoint[i]); Serial.print(", "); 
-            Serial.print(strHeatingOrCooling); 
+            myPID[i].Compute();
+          }
+          Serial.print("  Setpoint = "); Serial.print(Setpoint[i]); Serial.print(", "); 
+          Serial.print(strHeatingOrCooling); 
 //            Serial.print(", Output = "); Serial.print(Output[i]);
-            double DutyCycle = (Output[i]/255.0)*100;
-            Serial.print(", DutyCycle = "); Serial.print(DutyCycle); Serial.println("%");
-            
-//            if (prev10Sec != currentSec/10)
-//            {
-//                prev10Sec = currentSec/10;
-                SDLogging("Temp1", Setpoint[i], temp[i], (temp[i] - Setpoint[i]), Output[i], strHeatingOrCooling);
-//            }
+          double DutyCycle = (Output[i]/255.0)*100;
+          Serial.print(", DutyCycle = "); Serial.print(DutyCycle); Serial.println("%");
+          
+          SDLogging("Temp1", Setpoint[i], temp[i], (temp[i] - Setpoint[i]), Output[i], strHeatingOrCooling);
 
-            if (gap > 0.1)
+          if (gap > 0.1)
+          {
+            if (Input[i] < Setpoint[i])
             {
-              if (Input[i] < Setpoint[i])
-              {
-                analogWrite(HeaterUnit1,Output[i]); 
-                analogWrite(CoolerUnit1,0); 
-              }
-              else
-              {
-                analogWrite(CoolerUnit1,Output[i]); 
-                analogWrite(HeaterUnit1,0);                         
-              }
+              analogWrite(HeaterUnits[i],Output[i]); 
+              analogWrite(CoolerUnits[i],0); 
+            }
+            else
+            {
+              analogWrite(CoolerUnits[i],Output[i]); 
+              analogWrite(HeaterUnits[i],0);                         
             }
           }
           
