@@ -8,7 +8,9 @@
 
 int maxRTD=1;
 
-#define DELAY_BETWEEN_UPDATES 10000
+#define DELAY_BETWEEN_UPDATES 4000
+
+unsigned long timeLastPID = 0;
 
 /********************************************************
  * PID Proportional on measurement Example
@@ -436,10 +438,46 @@ void loop()
   int currentHour = now.hour();
   int currentMin  = now.minute();
   int currentSec  = now.second();
+
+  unsigned long timeCurrent = millis();
+  
+  if ((timeCurrent - timeLastPID) < DELAY_BETWEEN_UPDATES)
+  {
+    char separator;
+    counter++;
+    if ((counter & 1) == 1)
+      separator = ':';      
+    else
+      separator = ' '; 
+           
+    if (prevHour != currentHour || prevMin != currentMin)
+    {
+      display.fillRect(xOffset+(14*(5+1)), yOffset+0,5*(5+1),8,BLACK);
+      display.setCursor(xOffset+(14*(5+1)), yOffset+0);     
+      OledDisplayPrintTwoDigits(now.hour());
+      display.print(separator);
+      OledDisplayPrintTwoDigits(now.minute());
+      prevHour = currentHour;
+      prevMin = currentMin;
+    }
+    else
+    {
+      display.fillRect(xOffset+(16*(5+1)), yOffset+0,1*(5+1),8,BLACK);
+      display.setCursor(xOffset+(16*(5+1)), yOffset+0);     
+      display.print(separator);    
+    }
+    display.display();
+      
+    delay(100);
+    return;    
+  }
+
+  timeLastPID = timeCurrent;
+
+  
   double temp[4] = {0.0, 0.0, 0.0, 0.0};
   double delta[4] = {0.0, 0.0, 0.0, 0.0};
   uint8_t fault[4] = {false, false, false, false};
-  char separator;
 
   menuButton = digitalRead(menuPin);
   upButton = digitalRead(upPin);
@@ -467,6 +505,15 @@ void loop()
         Setpoint[i] = double(Setpoints_Thousandths[i][index]) / 1000.0;
         //Serial.print("Setpoint: ");
         //Serial.println(Setpoint[i],3);
+
+        if (Setpoint[i] != prevSetpoint[i])
+        {
+          display.fillRect(xOffset+(8*(5+1)), yOffset+((i+1)*lineSpacing),5*(5+1),8,BLACK);
+          display.setCursor(xOffset+(8*(5+1)), yOffset+((i+1)*lineSpacing));
+          display.print(Setpoint[i]);
+          prevTemp[i] = 0.0;  // force temp update 
+          prevSetpoint[i] = Setpoint[i]; 
+        }
         
         uint16_t rtd = max[i].readRTD();
       
@@ -525,28 +572,6 @@ void loop()
         }
       }
       
-//      delay(1000);
-    
-      counter++;
-      if ((counter & 1) == 1)
-        separator = ':';      
-      else
-        separator = ' '; 
-             
-      if (prevHour != currentHour || prevMin != currentMin)
-      {
-        display.fillRect(xOffset+(14*(5+1)), yOffset+0,5*(5+1),8,BLACK);
-        display.setCursor(xOffset+(14*(5+1)), yOffset+0);     
-        OledDisplayPrintTwoDigits(now.hour());
-        display.print(separator);
-        OledDisplayPrintTwoDigits(now.minute());
-      }
-      else
-      {
-        display.fillRect(xOffset+(16*(5+1)), yOffset+0,1*(5+1),8,BLACK);
-        display.print(separator);    
-      }
-    
       for (int i=0; i<maxRTD; i++)
       {
         if (fault[i])
@@ -605,11 +630,11 @@ void loop()
             double DutyCycle = (Output[i]/255.0)*100;
             Serial.print(", DutyCycle = "); Serial.print(DutyCycle); Serial.println("%");
             
-            if (prev10Sec != currentSec/10)
-            {
-                prev10Sec = currentSec/10;
+//            if (prev10Sec != currentSec/10)
+//            {
+//                prev10Sec = currentSec/10;
                 SDLogging("Temp1", Setpoint[i], temp[i], (temp[i] - Setpoint[i]), Output[i], strHeatingOrCooling);
-            }
+//            }
 
             if (gap > 0.1)
             {
@@ -640,16 +665,6 @@ void loop()
               display.print('+');
             display.print(delta[i]);      
           } 
-
-          if (Setpoint[i] != prevSetpoint[i])
-          {
-            display.fillRect(xOffset+(8*(5+1)), yOffset+((i+1)*lineSpacing),5*(5+1),8,BLACK);
-            display.setCursor(xOffset+(8*(5+1)), yOffset+((i+1)*lineSpacing));
-            display.print(Setpoint[i-1]);
-            display.display();
-            prevTemp[i] = 0.0;  // force temp update 
-            prevSetpoint[i] = Setpoint[i]; 
-          }
        }
       } 
       display.display();  
@@ -782,6 +797,8 @@ void loop()
       display.display();  
       if (enterButton == HIGH)
       {
+        Serial.println("Updating setpoint table.");
+        Serial.print("currentSetpoint = "); Serial.println(currentSetpoint);
         for (int iSetpoint=0; iSetpoint<240; iSetpoint++)
         {
           Setpoints_Thousandths[currentSetpoint][iSetpoint] = (unsigned int) (SetpointNew*1000.0);
@@ -832,8 +849,6 @@ void loop()
   }
 
   display.display();
-
-//  delay(DELAY_BETWEEN_UPDATES);
 }
 
 void displayFrame()
