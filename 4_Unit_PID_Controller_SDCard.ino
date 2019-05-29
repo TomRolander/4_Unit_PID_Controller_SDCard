@@ -3,7 +3,7 @@
  4xTomPort PID Controller
  **************************************************************************/
 
-#define VERSION "Ver 0.4 2019-05-23"
+#define VERSION "Ver 0.5 2019-05-29"
 
 
 int maxRTD=1;
