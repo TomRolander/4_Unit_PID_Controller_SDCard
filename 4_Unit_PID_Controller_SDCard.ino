@@ -8,7 +8,7 @@
 
 int maxRTD=1;
 
-#define DELAY_BETWEEN_UPDATES 4000
+#define DELAY_BETWEEN_UPDATES 1000
 
 unsigned long timeLastPID = 0;
 
@@ -22,16 +22,15 @@ unsigned long timeLastPID = 0;
 
 #include <PID_v1.h>
 
-//Define Variables we'll be connecting to
+//Define Variables we'll be connecting to with the PID library
 double Setpoint[4] = {22.0, 22.0, 22.0, 22.0};
-double Input[4] = {100.0, 100.0, 100.0, 100.0};
+double Input[4] = {0.0, 0.0, 0.0, 0.0};
 double Output[4] = {0.0, 0.0, 0.0, 0.0};
 
 double SetpointNew;
 
 double prevTemp[4] = {0.0, 0.0, 0.0, 0.0};
 double prevSetpoint[4] = {31.0, 31.0, 31.0, 31.0};
-//double setPointTemp[4] = {24.00, 25.00, 26.00, 27.00};
 
 double Kp = 2;
 double Ki = 5;
@@ -389,7 +388,8 @@ TCCR0B = TCCR0B & B11111000 | B00000101;    // set timer 0 divisor to  1024 for 
     Input[i] = 22.0;
     Setpoint[i] = 22.0;
     myPID[i].SetMode(AUTOMATIC);
-    myPID[i].SetControllerDirection(DIRECT);
+    Direction[i] = DIRECT;
+    myPID[i].SetControllerDirection(Direction[i]);
   }
 }
 
@@ -554,7 +554,7 @@ void loop()
 
         if (fault[i])
         {
-            ;
+          SDLogging(i+1, Setpoint[i], temp[i], (temp[i] - Setpoint[i]), Output[i], "FAULT");
         }
         else
         {
@@ -562,6 +562,16 @@ void loop()
 
           char *strHeatingOrCooling;
           double gap = abs(Setpoint[i]-Input[i]); //distance away from setpoint
+
+#if 0
+//////////////////  NEW ALGORITM
+          if (Direction[i] == DIRECT &&
+              Input[i] < Setpoint[i])
+          {
+              strHeatingOrCooling = "Heat";
+            
+          }
+#endif
 
           if (gap <= 0.1)
           {
@@ -575,23 +585,24 @@ void loop()
           {            
             if (Input[i] < Setpoint[i])
             {
-              myPID[i].SetControllerDirection(DIRECT);
+              Direction[i] = DIRECT;
+              myPID[i].SetControllerDirection(Direction[i]);
               strHeatingOrCooling = "Heat";
             }
             else
             {            
-              myPID[i].SetControllerDirection(REVERSE);
+              Direction[i] = REVERSE;
+              myPID[i].SetControllerDirection(Direction[i]);
               strHeatingOrCooling = "Cool";
             }
             myPID[i].Compute();
           }
           Serial.print("  Setpoint = "); Serial.print(Setpoint[i]); Serial.print(", "); 
           Serial.print(strHeatingOrCooling); 
-//            Serial.print(", Output = "); Serial.print(Output[i]);
           double DutyCycle = (Output[i]/255.0)*100;
           Serial.print(", DutyCycle = "); Serial.print(DutyCycle); Serial.println("%");
           
-          SDLogging("Temp1", Setpoint[i], temp[i], (temp[i] - Setpoint[i]), Output[i], strHeatingOrCooling);
+          SDLogging(i+1, Setpoint[i], temp[i], (temp[i] - Setpoint[i]), Output[i], strHeatingOrCooling);
 
           if (gap > 0.1)
           {
