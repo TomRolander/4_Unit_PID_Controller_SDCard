@@ -10,7 +10,7 @@ int maxRTD=1;
 
 #define DELAY_DIVISOR 16    // compensate for the change of frequency for Timer 0
 
-#define DELAY_BETWEEN_UPDATES 1000
+#define DELAY_BETWEEN_UPDATES 30000
 
 unsigned long timeLastPID = 0;
 
@@ -422,7 +422,7 @@ void loop()
   int currentMin  = now.minute();
   int currentSec  = now.second();
 
-  unsigned long timeCurrent = millis();
+  unsigned long timeCurrent = millis() * DELAY_DIVISOR;
     
   double temp[4] = {0.0, 0.0, 0.0, 0.0};
   double delta[4] = {0.0, 0.0, 0.0, 0.0};
@@ -447,6 +447,7 @@ void loop()
         break;
       }
 
+Serial.print(timeCurrent); Serial.print(" "); Serial.print(timeLastPID); Serial.print(" "); Serial.print(timeCurrent-timeLastPID); Serial.print(" "); Serial.println(DELAY_BETWEEN_UPDATES); 
       if ((timeCurrent - timeLastPID) < DELAY_BETWEEN_UPDATES)
       {
         char separator;
@@ -695,7 +696,7 @@ void loop()
       if (dnButton == LOW)
       {
         SetpointNew -= 0.1;
-        buttonDownStartTime = millis();
+        buttonDownStartTime = millis() * DELAY_DIVISOR;
         buttonDownIncrementTime = 0;
         currentState = STATE_SP_ENTER_DN_WAIT;
       }
@@ -717,7 +718,7 @@ void loop()
         currentState = STATE_SP_ENTER;
       else
       {
-        buttonDownCurrentTime = millis();
+        buttonDownCurrentTime = millis() * DELAY_DIVISOR;
         if (buttonDownCurrentTime > (buttonDownStartTime + BUTTON_HOLD_TIME))
         {
           if (buttonDownIncrementTime == 0 ||
@@ -742,7 +743,7 @@ void loop()
         currentState = STATE_SP_ENTER;
       else
       {
-        buttonDownCurrentTime = millis();
+        buttonDownCurrentTime = millis() * DELAY_DIVISOR;
         if (buttonDownCurrentTime > (buttonDownStartTime + BUTTON_HOLD_TIME))
         {
           if (buttonDownIncrementTime == 0 ||
