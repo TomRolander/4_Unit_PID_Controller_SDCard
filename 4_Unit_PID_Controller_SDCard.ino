@@ -447,7 +447,7 @@ void loop()
         break;
       }
 
-Serial.print(timeCurrent); Serial.print(" "); Serial.print(timeLastPID); Serial.print(" "); Serial.print(timeCurrent-timeLastPID); Serial.print(" "); Serial.println(DELAY_BETWEEN_UPDATES); 
+//Serial.print(timeCurrent); Serial.print(" "); Serial.print(timeLastPID); Serial.print(" "); Serial.print(timeCurrent-timeLastPID); Serial.print(" "); Serial.println(DELAY_BETWEEN_UPDATES); 
       if ((timeCurrent - timeLastPID) < DELAY_BETWEEN_UPDATES)
       {
         char separator;
