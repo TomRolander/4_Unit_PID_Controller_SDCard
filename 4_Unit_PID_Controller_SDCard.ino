@@ -3,10 +3,12 @@
  4xTomPort PID Controller
  **************************************************************************/
 
-#define VERSION "Ver 0.5 2019-05-30"
+#define VERSION "Ver 0.6 2019-06-03"
 
 
 int maxRTD=1;
+
+#define DELAY_DIVISOR 16    // compensate for the change of frequency for Timer 0
 
 #define DELAY_BETWEEN_UPDATES 1000
 
@@ -212,117 +214,7 @@ void setup()
   Serial.begin(9600);
   Serial.println("");
   Serial.println("Serial Initialized...");
-
-  for (int i=0; i<maxRTD; i++) {
-    max[i].begin(MAX31865_3WIRE);  // set to 2WIRE or 4WIRE as necessary
-  }
-
-  pinMode(menuPin, INPUT_PULLUP);
-  pinMode(upPin, INPUT_PULLUP);
-  pinMode(dnPin, INPUT_PULLUP);
-  pinMode(enterPin, INPUT_PULLUP);
-
-  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  if(!display.begin(SSD1306_SWITCHCAPVCC)) {
-    Serial.println("SSD1306 allocation failed");
-    for(;;); // Don't proceed, loop forever
-  }
-
-  displayFrame();
-  display.setTextSize(1);      // Normal 1:1 pixel scale
-  display.setTextColor(WHITE); // Draw white text
-  display.cp437(true);         // Use full 256 char 'Code Page 437' font
-
-  display.setCursor(xOffset, yOffset+0);     
-  display.print("4 Unit PID");
-  display.setCursor(xOffset, yOffset+lineSpacing);     
-  display.print("Hopkins 4xTomPort");
-  display.setCursor(xOffset, yOffset+(2*lineSpacing));     
-  display.print(VERSION);
-  display.display();
-
-  delay(5000);
-
-  SetupSDCardOperations();    
-
-// Initialize the Real Time Clock
-  if (! rtc.begin()) 
-  {
-    displayFrame();
-    display.setCursor(xOffset, yOffset+(1*lineSpacing));
-    display.print("*** ERROR ***   ");
-    display.setCursor(xOffset, yOffset+(2*lineSpacing));
-    display.print("Couldnt find RTC");
-    while (1);
-  } 
-  if (! rtc.initialized()) 
-  {
-    displayFrame();
-    display.setCursor(xOffset, yOffset+(1*lineSpacing));
-    display.print("*** WARN ***    ");
-    display.setCursor(xOffset, yOffset+(2*lineSpacing));
-    display.print("RTC isnt running");
-    
-    // following line sets the RTC to the date & time this sketch was compiled
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-    // This line sets the RTC with an explicit date & time, for example to set
-    // January 21, 2014 at 3am you would call:
-    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
-  }
-  now = rtc.now();
-
-  displayFrame();
-  display.setCursor(xOffset, yOffset+(1*lineSpacing));
-  display.print("*** DATE ***    ");
-  display.setCursor(xOffset, yOffset+(2*lineSpacing));
-  display.print(now.year(), DEC);
-  display.print("/");
-  OledDisplayPrintTwoDigits(now.month());
-  display.print("/");
-  OledDisplayPrintTwoDigits(now.day());
-  display.print(" ");
-  OledDisplayPrintTwoDigits(now.hour());
-  display.print(":");
-  OledDisplayPrintTwoDigits(now.minute());
-  display.display();
-  delay(2000);
-
-  Serial.println("Tuning Parameters");
-  Serial.print(" Kp = ");
-  Serial.println(Kp);
-  Serial.print(" Ki = ");
-  Serial.println(Ki);
-  Serial.print(" Kd = ");
-  Serial.println(Kd);
-  Serial.print(" Prop on ");
-  if (POn == P_ON_E)
-    Serial.println("Error");
-  else
-    Serial.println("Measure"); 
-
-  displayFrame();
-  display.setCursor(xOffset, yOffset+(0*lineSpacing));
-  display.print("Tuning Parameters");
-  display.setCursor(xOffset, yOffset+(1*lineSpacing));
-  display.print(" Kp = ");
-  display.print(Kp);
-  display.setCursor(xOffset, yOffset+(2*lineSpacing));
-  display.print(" Ki = ");
-  display.print(Ki);
-  display.setCursor(xOffset, yOffset+(3*lineSpacing));
-  display.print(" Kd = ");
-  display.print(Kd);
-  display.setCursor(xOffset, yOffset+(4*lineSpacing));
-  display.print(" Prop on ");
-  if (POn == P_ON_E)
-    display.print("Error");
-  else
-    display.print("Measure"); 
-  display.display();
-  delay(2000);
-
-  displayRun();
-
+  
 //For Arduino Mega1280, Mega2560, MegaADK, Spider or any other board using ATmega1280 or ATmega2560
 
 //---------------------------------------------- Set PWM frequency for D4 & D13 ------------------------------
@@ -380,6 +272,115 @@ TCCR0B = TCCR0B & B11111000 | B00000101;    // set timer 0 divisor to  1024 for 
 //TCCR5B = TCCR5B & B11111000 | B00000101;    // set timer 5 divisor to  1024 for PWM frequency of    30.64 Hz
   
 
+  for (int i=0; i<maxRTD; i++) {
+    max[i].begin(MAX31865_3WIRE);  // set to 2WIRE or 4WIRE as necessary
+  }
+
+  pinMode(menuPin, INPUT_PULLUP);
+  pinMode(upPin, INPUT_PULLUP);
+  pinMode(dnPin, INPUT_PULLUP);
+  pinMode(enterPin, INPUT_PULLUP);
+
+  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+  if(!display.begin(SSD1306_SWITCHCAPVCC)) {
+    Serial.println("SSD1306 allocation failed");
+    for(;;); // Don't proceed, loop forever
+  }
+
+  displayFrame();
+  display.setTextSize(1);      // Normal 1:1 pixel scale
+  display.setTextColor(WHITE); // Draw white text
+  display.cp437(true);         // Use full 256 char 'Code Page 437' font
+
+  display.setCursor(xOffset, yOffset+0);     
+  display.print("4 Unit PID");
+  display.setCursor(xOffset, yOffset+lineSpacing);     
+  display.print("Hopkins 4xTomPort");
+  display.setCursor(xOffset, yOffset+(2*lineSpacing));     
+  display.print(VERSION);
+  display.display();
+
+  delay(5000/DELAY_DIVISOR);
+
+  SetupSDCardOperations();    
+
+// Initialize the Real Time Clock
+  if (! rtc.begin()) 
+  {
+    displayFrame();
+    display.setCursor(xOffset, yOffset+(1*lineSpacing));
+    display.print("*** ERROR ***   ");
+    display.setCursor(xOffset, yOffset+(2*lineSpacing));
+    display.print("Couldnt find RTC");
+    while (1);
+  } 
+  if (! rtc.initialized()) 
+  {
+    displayFrame();
+    display.setCursor(xOffset, yOffset+(1*lineSpacing));
+    display.print("*** WARN ***    ");
+    display.setCursor(xOffset, yOffset+(2*lineSpacing));
+    display.print("RTC isnt running");
+    
+    // following line sets the RTC to the date & time this sketch was compiled
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    // This line sets the RTC with an explicit date & time, for example to set
+    // January 21, 2014 at 3am you would call:
+    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+  }
+  now = rtc.now();
+
+  displayFrame();
+  display.setCursor(xOffset, yOffset+(1*lineSpacing));
+  display.print("*** DATE ***    ");
+  display.setCursor(xOffset, yOffset+(2*lineSpacing));
+  display.print(now.year(), DEC);
+  display.print("/");
+  OledDisplayPrintTwoDigits(now.month());
+  display.print("/");
+  OledDisplayPrintTwoDigits(now.day());
+  display.print(" ");
+  OledDisplayPrintTwoDigits(now.hour());
+  display.print(":");
+  OledDisplayPrintTwoDigits(now.minute());
+  display.display();
+  delay(2000/DELAY_DIVISOR);
+
+  Serial.println("Tuning Parameters");
+  Serial.print(" Kp = ");
+  Serial.println(Kp);
+  Serial.print(" Ki = ");
+  Serial.println(Ki);
+  Serial.print(" Kd = ");
+  Serial.println(Kd);
+  Serial.print(" Prop on ");
+  if (POn == P_ON_E)
+    Serial.println("Error");
+  else
+    Serial.println("Measure"); 
+
+  displayFrame();
+  display.setCursor(xOffset, yOffset+(0*lineSpacing));
+  display.print("Tuning Parameters");
+  display.setCursor(xOffset, yOffset+(1*lineSpacing));
+  display.print(" Kp = ");
+  display.print(Kp);
+  display.setCursor(xOffset, yOffset+(2*lineSpacing));
+  display.print(" Ki = ");
+  display.print(Ki);
+  display.setCursor(xOffset, yOffset+(3*lineSpacing));
+  display.print(" Kd = ");
+  display.print(Kd);
+  display.setCursor(xOffset, yOffset+(4*lineSpacing));
+  display.print(" Prop on ");
+  if (POn == P_ON_E)
+    display.print("Error");
+  else
+    display.print("Measure"); 
+  display.display();
+  delay(2000/DELAY_DIVISOR);
+
+  displayRun();
 
   //turn the PID on
   for (int i=0; i<4; i++)
@@ -415,7 +416,7 @@ void displayRun()
 }
 
 void loop() 
-{
+{  
   now = rtc.now();
   int currentHour = now.hour();
   int currentMin  = now.minute();
@@ -473,7 +474,7 @@ void loop()
         }
         display.display();
           
-        delay(100);
+        delay(1000/DELAY_DIVISOR);
         return;    
       }
     
@@ -481,6 +482,9 @@ void loop()
 
       for (int i=0; i<maxRTD; i++)
       {
+        char szUnit[] = "Unit?";
+        szUnit[4] = char ('1'+i);
+        
         // Update the Setpoint from the table
         int index = (currentHour*10) + ((currentMin*10)/60);
         Setpoint[i] = double(Setpoints_Thousandths[i][index]) / 1000.0;
@@ -504,6 +508,22 @@ void loop()
       //  Serial.print("Ratio = "); Serial.println(ratio,8);
       //  Serial.print("Resistance = "); Serial.println(RREF*ratio,8);
     
+        Serial.print(now.year(), DEC);
+        Serial.print("/");
+        Serial.print(now.month(), DEC);
+        Serial.print("/");
+        Serial.print(now.day(), DEC);
+        Serial.print(" ");
+        if (now.hour() < 10) Serial.print("0");
+        Serial.print(now.hour(), DEC);
+        Serial.print(":");
+        if (now.minute() < 10) Serial.print("0");
+        Serial.print(now.minute(), DEC);
+        Serial.print(":");
+        if (now.second() < 10) Serial.print("0");
+        Serial.print(now.second(), DEC);
+        Serial.print(" ");
+
         temp[i] = max[i].temperature(RNOMINAL, RREF);
         // Check and print any faults
         fault[i] = max[i].readFault();
@@ -531,30 +551,14 @@ void loop()
           max[i].clearFault();
         }
         else
-        {
-          Serial.print(now.year(), DEC);
-          Serial.print("/");
-          Serial.print(now.month(), DEC);
-          Serial.print("/");
-          Serial.print(now.day(), DEC);
-          Serial.print(" ");
-          if (now.hour() < 10) Serial.print("0");
-          Serial.print(now.hour(), DEC);
-          Serial.print(":");
-          if (now.minute() < 10) Serial.print("0");
-          Serial.print(now.minute(), DEC);
-          Serial.print(":");
-          if (now.second() < 10) Serial.print("0");
-          Serial.print(now.second(), DEC);
-          Serial.print(" ");
-          
+        {          
           Serial.print(i+1); Serial.print( " Temp = "); Serial.print(temp[i]); 
           Serial.print(" Delta "); Serial.print(temp[i] - Setpoint[i]);      
         }
 
         if (fault[i])
         {
-          SDLogging(i+1, Setpoint[i], temp[i], (temp[i] - Setpoint[i]), Output[i], "FAULT");
+          SDLogging(szUnit, Setpoint[i], 0, fault[i], 0, "FAULT");
         }
         else
         {
@@ -568,12 +572,15 @@ void loop()
           if (Direction[i] == DIRECT &&
               Input[i] < Setpoint[i])
           {
-              strHeatingOrCooling = "Heat";
-            
+              myPID[i].SetControllerDirection(Direction[i]);
+              analogWrite(CoolerUnits[i],0); 
+              strHeatingOrCooling = "Heat";           
           }
 #endif
 
-          if (gap <= 0.1)
+          if ((Direction[i] == DIRECT && Input[i] > Setpoint[i]) ||
+              (Direction[i] == REVERSE && gap <= 0.1))
+//        if (gap <= 0.1)
           {
             // PWM of 0 when within 0.1C
             Output[i] = 0.0;
@@ -583,7 +590,7 @@ void loop()
           }
           else
           {            
-            if (Input[i] < Setpoint[i])
+            if (Input[i] <= Setpoint[i])
             {
               Direction[i] = DIRECT;
               myPID[i].SetControllerDirection(Direction[i]);
@@ -602,7 +609,7 @@ void loop()
           double DutyCycle = (Output[i]/255.0)*100;
           Serial.print(", DutyCycle = "); Serial.print(DutyCycle); Serial.println("%");
           
-          SDLogging(i+1, Setpoint[i], temp[i], (temp[i] - Setpoint[i]), Output[i], strHeatingOrCooling);
+          SDLogging(szUnit, Setpoint[i], temp[i], (temp[i] - Setpoint[i]), Output[i], strHeatingOrCooling);
 
           if (gap > 0.1)
           {
@@ -633,6 +640,7 @@ void loop()
             display.print(delta[i]);      
           } 
        }
+       
       } 
       display.display();  
       break;
@@ -849,7 +857,7 @@ void SetupSDCardOperations()
     display.display();
     while (1);
   }
-  delay(2000);
+  delay(2000/DELAY_DIVISOR);
 
   
   displayFrame();
@@ -925,7 +933,7 @@ void SetupSDCardOperations()
         //display.setCursor(xOffset, yOffset+(2*lineSpacing));
         display.print("* processed *");
         display.display();
-        delay(2000);
+        delay(2000/DELAY_DIVISOR);
       
       }
       else
@@ -940,7 +948,7 @@ void SetupSDCardOperations()
     display.print("* does not exist");
     display.display();
   }
-  delay(2000);
+  delay(2000/DELAY_DIVISOR);
 
 // CONTROL.CSV Processing
   displayFrame();
@@ -1001,7 +1009,7 @@ void SetupSDCardOperations()
         
         display.print("* processed *");
         display.display();
-        delay(2000);      
+        delay(2000/DELAY_DIVISOR);      
       }
       else
       {
@@ -1014,7 +1022,7 @@ void SetupSDCardOperations()
     display.print("* does not exist");
     display.display();
   }
-  delay(2000);
+  delay(2000/DELAY_DIVISOR);
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -1047,7 +1055,7 @@ void SetupSDCardOperations()
                        
           display.print("* processed *");
           display.display();
-          delay(2000);      
+          delay(2000/DELAY_DIVISOR);      
         }
         else
         {
@@ -1060,7 +1068,7 @@ void SetupSDCardOperations()
       display.print("* does not exist");
       display.display();
     }
-    delay(2000);
+    delay(2000/DELAY_DIVISOR);
   }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1100,7 +1108,7 @@ void SetupSDCardOperations()
   display.setCursor(xOffset, yOffset+(2*lineSpacing));
   display.print("SD Init Finish  ");
   display.display();
-  delay(2000);
+  delay(2000/DELAY_DIVISOR);
   
   SDLogging("Start Up", 0.0, 0.0, 0.0, 0.0, "");
 }
@@ -1169,7 +1177,7 @@ void SDLogging(char *status, double setpoint, double temp, double delta, double 
       display.setCursor(xOffset, yOffset+(2*lineSpacing));
       display.print("Open LOGGING.CSV");
       display.display();
-      delay(2000);
+      delay(2000/DELAY_DIVISOR);
     }  
   }
 }
