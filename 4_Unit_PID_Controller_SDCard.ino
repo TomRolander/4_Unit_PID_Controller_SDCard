@@ -3,7 +3,7 @@
  4xTomPort PID Controller
  **************************************************************************/
 
-#define VERSION "Ver 0.6 2019-06-03"
+#define VERSION "Ver 0.7 2019-06-03"
 
 
 int maxRTD=1;
@@ -567,6 +567,7 @@ void loop()
 
           char *strHeatingOrCooling;
           double gap = abs(Setpoint[i]-Input[i]); //distance away from setpoint
+          int bOff = 0; 
 
 #if 0
 //////////////////  NEW ALGORITM
@@ -579,15 +580,17 @@ void loop()
           }
 #endif
 
-          if ((Direction[i] == DIRECT && Input[i] > Setpoint[i]) ||
-              (Direction[i] == REVERSE && gap <= 0.1))
-//        if (gap <= 0.1)
+          if (gap <= 0.1 &&
+              ((Direction[i] == DIRECT && Input[i] > Setpoint[i]) ||
+               (Direction[i] == REVERSE && gap <= 0.1)))
+//          if (gap <= 0.1)
           {
             // PWM of 0 when within 0.1C
             Output[i] = 0.0;
             analogWrite(CoolerUnits[i],0); 
             analogWrite(HeaterUnits[i],0);                         
             strHeatingOrCooling = "OFF ";
+            bOff = 1;
           }
           else
           {            
@@ -612,9 +615,10 @@ void loop()
           
           SDLogging(szUnit, Setpoint[i], temp[i], (temp[i] - Setpoint[i]), Output[i], strHeatingOrCooling);
 
-          if (gap > 0.1)
+//          if (gap > 0.1)
+          if (bOff == 0)
           {
-            if (Input[i] < Setpoint[i])
+            if (Input[i] <= Setpoint[i])
             {
               analogWrite(HeaterUnits[i],Output[i]); 
               analogWrite(CoolerUnits[i],0); 
