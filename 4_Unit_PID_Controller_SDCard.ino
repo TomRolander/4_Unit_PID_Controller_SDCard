@@ -10,7 +10,11 @@ int maxRTD=1;
 
 #define DELAY_DIVISOR 16    // compensate for the change of frequency for Timer 0
 
-#define DELAY_BETWEEN_UPDATES 15000
+#define DELAY_BETWEEN_UPDATES 10000
+
+#define MINIMUM_COOL  60000
+
+int iCoolUpdates = 0;
 
 unsigned long timeLastPID = 0;
 
@@ -389,6 +393,7 @@ TCCR0B = TCCR0B & B11111000 | B00000101;    // set timer 0 divisor to  1024 for 
     Input[i] = 22.0;
     Setpoint[i] = 22.0;
     myPID[i].SetMode(AUTOMATIC);
+    myPID[i].SetOutputLimits(25.0,127.5);
     Direction[i] = DIRECT;
     myPID[i].SetControllerDirection(Direction[i]);
   }
@@ -581,16 +586,16 @@ void loop()
 #endif
 
           if (gap <= 0.1 &&
-              ((Direction[i] == DIRECT && Input[i] > Setpoint[i]) ||
-               (Direction[i] == REVERSE && gap <= 0.1)))
-//          if (gap <= 0.1)
+              ((Direction[i] == DIRECT && Input[i] >= Setpoint[i]) ||
+               (Direction[i] == REVERSE && iCoolUpdates >= (MINIMUM_COOL/DELAY_BETWEEN_UPDATES))))
           {
             // PWM of 0 when within 0.1C
             Output[i] = 0.0;
-            analogWrite(CoolerUnits[i],0); 
-            analogWrite(HeaterUnits[i],0);                         
+            analogWrite(CoolerUnits[i],0.0); 
+            analogWrite(HeaterUnits[i],0.0);                         
             strHeatingOrCooling = "OFF ";
             bOff = 1;
+            iCoolUpdates = 0;
           }
           else
           {            
@@ -613,26 +618,27 @@ void loop()
           double DutyCycle = (Output[i]/255.0)*100;
           Serial.print(", DutyCycle = "); Serial.print(DutyCycle); Serial.println("%");
           
-          SDLogging(szUnit, Setpoint[i], temp[i], (temp[i] - Setpoint[i]), Output[i], strHeatingOrCooling);
-
 //          if (gap > 0.1)
           if (bOff == 0)
           {
             if (Input[i] <= Setpoint[i])
             {
               analogWrite(HeaterUnits[i],Output[i]); 
-              analogWrite(CoolerUnits[i],0); 
+              analogWrite(CoolerUnits[i],0.0); 
+              iCoolUpdates = 0;
             }
             else
             {
 #if 1 // Force 100% Duty Cycle for cooling
-              analogWrite(CoolerUnits[i],255);
-#else
+              Output[i] = 255.0;
+#endif
               analogWrite(CoolerUnits[i],Output[i]); 
-#endif              
-              analogWrite(HeaterUnits[i],0);                         
+              analogWrite(HeaterUnits[i],0.0);                         
+              iCoolUpdates++;
             }
           }
+
+          SDLogging(szUnit, Setpoint[i], temp[i], (temp[i] - Setpoint[i]), Output[i], strHeatingOrCooling);
           
           if (temp[i] != prevTemp[i])
           {
