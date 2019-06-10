@@ -3,7 +3,7 @@
  4xTomPort PID Controller
  **************************************************************************/
 
-#define VERSION "Ver 0.7 2019-06-04"
+#define VERSION "Ver 0.7 2019-06-10"
 
 
 int maxRTD=1;
@@ -73,10 +73,10 @@ double DeltaIncrement = 0.5;
 
 // Use software SPI: CS, DI, DO, CLK
 Adafruit_MAX31865 max[4] = {
-  Adafruit_MAX31865(44, 22, 23, 24),
-  Adafruit_MAX31865(45, 22, 23, 24),
-  Adafruit_MAX31865(46, 22, 23, 24),
-  Adafruit_MAX31865(47, 22, 23, 24)
+  Adafruit_MAX31865(44, 32, 33, 34),
+  Adafruit_MAX31865(45, 32, 33, 34),
+  Adafruit_MAX31865(46, 32, 33, 34),
+  Adafruit_MAX31865(47, 32, 33, 34)
 };
 
 // The value of the Rref resistor. Use 430.0 for PT100 and 4300.0 for PT1000
