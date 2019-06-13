@@ -3,7 +3,7 @@
  4xTomPort PID Controller
  **************************************************************************/
 
-#define VERSION "Ver 0.7 2019-06-10"
+#define VERSION "Ver 0.7 2019-06-13"
 
 
 int maxRTD=1;
@@ -37,6 +37,8 @@ double SetpointNew;
 
 double prevTemp[4] = {0.0, 0.0, 0.0, 0.0};
 double prevSetpoint[4] = {31.0, 31.0, 31.0, 31.0};
+
+double offsetTemp[4] = {0.03, 0.07, -0.10, 0.0};
 
 double Kp = 2;
 double Ki = 5;
@@ -531,6 +533,9 @@ void loop()
         Serial.print(" ");
 
         temp[i] = max[i].temperature(RNOMINAL, RREF);
+
+        temp[i] += offsetTemp[i];
+        
         // Check and print any faults
         fault[i] = max[i].readFault();
         if (fault[i]) 
