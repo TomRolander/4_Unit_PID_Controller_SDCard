@@ -6,7 +6,7 @@
 #define VERSION "Ver 0.7 2019-06-13"
 
 
-int maxRTD=1;
+int maxRTD=3;
 
 #define DELAY_DIVISOR 16    // compensate for the change of frequency for Timer 0
 
