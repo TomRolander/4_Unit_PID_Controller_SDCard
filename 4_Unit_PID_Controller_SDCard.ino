@@ -11,12 +11,14 @@ int maxRTD=4;
 #define DELAY_DIVISOR 16    // compensate for the change of frequency for Timer 0
 
 #define DELAY_BETWEEN_UPDATES 10000
+#define DELAY_BETWEEN_LOGGING 60000
 
 #define MINIMUM_COOL  60000
 
 int iCoolUpdates = 0;
 
 unsigned long timeLastPID = 0;
+unsigned long timeLastLog = 0;
 
 /********************************************************
  * PID Proportional on measurement Example
@@ -569,7 +571,11 @@ void loop()
 
         if (fault[i])
         {
-          SDLogging(szUnit, Setpoint[i], 0, fault[i], 0, "FAULT");
+          if ((timeCurrent - timeLastLog) >= DELAY_BETWEEN_LOGGING)
+          {
+            timeLastLog = timeCurrent;          
+            SDLogging(szUnit, Setpoint[i], 0, fault[i], 0, "FAULT");
+          }
         }
         else
         {
@@ -643,7 +649,11 @@ void loop()
             }
           }
 
-          SDLogging(szUnit, Setpoint[i], temp[i], (temp[i] - Setpoint[i]), Output[i], strHeatingOrCooling);
+          if ((timeCurrent - timeLastLog) >= DELAY_BETWEEN_LOGGING)
+          {
+            timeLastLog = timeCurrent;          
+            SDLogging(szUnit, Setpoint[i], temp[i], (temp[i] - Setpoint[i]), Output[i], strHeatingOrCooling);
+          }
           
           if (temp[i] != prevTemp[i])
           {
