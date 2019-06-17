@@ -6,7 +6,7 @@
 #define VERSION "Ver 0.7 2019-06-13"
 
 
-int maxRTD=3;
+int maxRTD=4;
 
 #define DELAY_DIVISOR 16    // compensate for the change of frequency for Timer 0
 
@@ -38,7 +38,7 @@ double SetpointNew;
 double prevTemp[4] = {0.0, 0.0, 0.0, 0.0};
 double prevSetpoint[4] = {31.0, 31.0, 31.0, 31.0};
 
-double offsetTemp[4] = {0.03, 0.07, -0.10, 0.0};
+double offsetTemp[4] = {-0.16, 0.06, -0.2, 0.12};
 
 double Kp = 2;
 double Ki = 5;
@@ -1106,7 +1106,7 @@ void SetupSDCardOperations()
     fileSDCard = SD.open("LOGGING.CSV", FILE_WRITE);
     if (fileSDCard) 
     {
-      fileSDCard.println("\"Date\",\"Time\",\"Status\",\"Setpt\",\"Temp\",\"Delta\",\"Output\",\"DutyCycle\",\"Dir\"");
+      fileSDCard.println("\"Date\",\"Time\",\"Unit\",\"Setpt\",\"Temp\",\"Delta\",\"Output\",\"DutyCycle\",\"Dir\"");
       fileSDCard.close();
     }
     else
@@ -1133,7 +1133,7 @@ void SetupSDCardOperations()
   SDLogging("Start Up", 0.0, 0.0, 0.0, 0.0, "");
 }
 
-void SDLogging(char *status, double setpoint, double temp, double delta, double output, char *strDir)
+void SDLogging(char *szUnit, double setpoint, double temp, double delta, double output, char *strDir)
 {
   if (!SD.begin(chipSelectSDCard)) 
   {
@@ -1151,7 +1151,7 @@ void SDLogging(char *status, double setpoint, double temp, double delta, double 
   bSDLogFail = false;
   iToggle = 0;
 
-//  if ((strcmp((const char*) status, "") != 0) || bForceOneMinuteLogging)
+//  if ((strcmp((const char*) szUnit, "") != 0) || bForceOneMinuteLogging)
   {
     fileSDCard = SD.open("LOGGING.CSV", FILE_WRITE);
   
@@ -1170,7 +1170,7 @@ void SDLogging(char *status, double setpoint, double temp, double delta, double 
       fileSDCard.print(":");
       fileSDCard.print(now.second(), DEC);
       fileSDCard.print(",");
-      fileSDCard.print(status);
+      fileSDCard.print(szUnit);
       fileSDCard.print(",");
       fileSDCard.print(setpoint);
       fileSDCard.print(",");
