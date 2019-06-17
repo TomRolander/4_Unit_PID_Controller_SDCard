@@ -3,7 +3,7 @@
  4xTomPort PID Controller
  **************************************************************************/
 
-#define VERSION "Ver 0.8 2019-06-14"
+#define VERSION "Ver 0.8 2019-06-17"
 
 
 int maxRTD=4;
@@ -573,7 +573,7 @@ void loop()
         {
           if ((timeCurrent - timeLastLog) >= DELAY_BETWEEN_LOGGING)
           {
-            timeLastLog = timeCurrent;          
+//            timeLastLog = timeCurrent;          
             SDLogging(szUnit, Setpoint[i], 0, fault[i], 0, "FAULT");
           }
         }
@@ -651,7 +651,8 @@ void loop()
 
           if ((timeCurrent - timeLastLog) >= DELAY_BETWEEN_LOGGING)
           {
-            timeLastLog = timeCurrent;          
+            if (i+1 >= maxRTD)
+              timeLastLog = timeCurrent;          
             SDLogging(szUnit, Setpoint[i], temp[i], (temp[i] - Setpoint[i]), Output[i], strHeatingOrCooling);
           }
           
