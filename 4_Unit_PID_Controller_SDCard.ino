@@ -40,7 +40,7 @@ double SetpointNew;
 double prevTemp[4] = {0.0, 0.0, 0.0, 0.0};
 double prevSetpoint[4] = {31.0, 31.0, 31.0, 31.0};
 
-double offsetTemp[4] = {-0.16, 0.06, -0.2, 0.12};
+double offsetTemp[4] = {-0.16, 0.06, -0.01, 0.12};
 
 double Kp = 2;
 double Ki = 5;
@@ -566,7 +566,8 @@ void loop()
         else
         {          
           Serial.print(i+1); Serial.print( " Temp = "); Serial.print(temp[i]); 
-          Serial.print(" Delta "); Serial.print(temp[i] - Setpoint[i]);      
+          Serial.print(" Delta = "); Serial.print(temp[i] - Setpoint[i]);      
+          Serial.print(" Offset = "); Serial.print(offsetTemp[i]);      
         }
 
         if (fault[i])
@@ -574,7 +575,7 @@ void loop()
           if ((timeCurrent - timeLastLog) >= DELAY_BETWEEN_LOGGING)
           {
 //            timeLastLog = timeCurrent;          
-            SDLogging(szUnit, Setpoint[i], 0, fault[i], 0, "FAULT");
+            SDLogging(szUnit, Setpoint[i], 0, fault[i], 0, 0, "FAULT");
           }
         }
         else
@@ -653,7 +654,7 @@ void loop()
           {
             if (i+1 >= maxRTD)
               timeLastLog = timeCurrent;          
-            SDLogging(szUnit, Setpoint[i], temp[i], (temp[i] - Setpoint[i]), Output[i], strHeatingOrCooling);
+            SDLogging(szUnit, Setpoint[i], temp[i], (temp[i] - Setpoint[i]), offsetTemp[i], Output[i], strHeatingOrCooling);
           }
           
           if (temp[i] != prevTemp[i])
@@ -1117,7 +1118,7 @@ void SetupSDCardOperations()
     fileSDCard = SD.open("LOGGING.CSV", FILE_WRITE);
     if (fileSDCard) 
     {
-      fileSDCard.println("\"Date\",\"Time\",\"Unit\",\"Setpt\",\"Temp\",\"Delta\",\"Output\",\"DutyCycle\",\"Dir\"");
+      fileSDCard.println("\"Date\",\"Time\",\"Unit\",\"Setpt\",\"Temp\",\"Delta\",\"Offset\",\"Output\",\"DutyCycle\",\"Dir\"");
       fileSDCard.close();
     }
     else
@@ -1141,10 +1142,10 @@ void SetupSDCardOperations()
   display.display();
   delay(2000/DELAY_DIVISOR);
   
-  SDLogging("Start Up", 0.0, 0.0, 0.0, 0.0, "");
+  SDLogging("Start Up", 0.0, 0.0, 0.0, 0.0, 0.0, "");
 }
 
-void SDLogging(char *szUnit, double setpoint, double temp, double delta, double output, char *strDir)
+void SDLogging(char *szUnit, double setpoint, double temp, double delta, double offset, double output, char *strDir)
 {
   if (!SD.begin(chipSelectSDCard)) 
   {
@@ -1188,6 +1189,8 @@ void SDLogging(char *szUnit, double setpoint, double temp, double delta, double 
       fileSDCard.print(temp);
       fileSDCard.print(",");
       fileSDCard.print(delta);
+      fileSDCard.print(",");
+      fileSDCard.print(offset);
       fileSDCard.print(",");
       fileSDCard.print(output);
       fileSDCard.print(",");
