@@ -3,7 +3,7 @@
  4xTomPort PID Controller
  **************************************************************************/
 
-#define VERSION "Ver 0.8 2019-06-18"
+#define VERSION "Ver 0.8 2019-06-20"
 
 
 int maxRTD=4;
@@ -576,6 +576,15 @@ void loop()
           {
 //            timeLastLog = timeCurrent;          
             SDLogging(szUnit, Setpoint[i], 0, fault[i], 0, 0, "FAULT");
+
+            display.fillRect(xOffset+(2*(5+1)), yOffset+((i+1)*lineSpacing),5*(5+1),8,BLACK);
+            display.setCursor(xOffset+(2*(5+1)), yOffset+((i+1)*lineSpacing));
+            display.print("FAULT");
+    
+            delta[i] = temp[i] - Setpoint[i];
+            display.fillRect(xOffset+(14*(5+1)), yOffset+((i+1)*lineSpacing),5*(5+1),8,BLACK);
+            display.setCursor(xOffset+(14*(5+1)), yOffset+((i+1)*lineSpacing));
+            display.print(fault[i]);                 
           }
         }
         else
@@ -585,17 +594,6 @@ void loop()
           char *strHeatingOrCooling;
           double gap = abs(Setpoint[i]-Input[i]); //distance away from setpoint
           int bOff = 0; 
-
-#if 0
-//////////////////  NEW ALGORITM
-          if (Direction[i] == DIRECT &&
-              Input[i] < Setpoint[i])
-          {
-              myPID[i].SetControllerDirection(Direction[i]);
-              analogWrite(CoolerUnits[i],0); 
-              strHeatingOrCooling = "Heat";           
-          }
-#endif
 
           if (gap <= 0.1 &&
               ((Direction[i] == DIRECT && Input[i] >= Setpoint[i]) ||
