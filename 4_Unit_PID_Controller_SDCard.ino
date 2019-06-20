@@ -3,7 +3,7 @@
  4xTomPort PID Controller
  **************************************************************************/
 
-#define VERSION "Ver 0.8 2019-06-20"
+#define VERSION "Ver 0.5 2019-06-20"
 
 
 int maxRTD=4;
@@ -639,12 +639,18 @@ void loop()
             }
             else
             {
-#if 1 // Force 100% Duty Cycle for cooling
-              Output[i] = 255.0;
-#endif
-              analogWrite(CoolerUnits[i],Output[i]); 
+              if (Input[i] <= (Setpoint[i] + 0.1))
+              {
+                analogWrite(CoolerUnits[i],0.0);
+                strHeatingOrCooling = "OFF";
+              }
+              else
+              {
+                Output[i] = 255.0;  // Force 100% Duty Cycle for cooling
+                analogWrite(CoolerUnits[i],Output[i]); 
+                iCoolUpdates++;
+              }
               analogWrite(HeaterUnits[i],0.0);                         
-              iCoolUpdates++;
             }
           }
 
