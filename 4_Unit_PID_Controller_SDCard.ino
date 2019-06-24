@@ -3,7 +3,7 @@
  4xTomPort PID Controller
  **************************************************************************/
 
-#define VERSION "Ver 0.5 2019-06-20"
+#define VERSION "Ver 0.5 2019-06-24"
 
 
 int maxRTD=4;
@@ -14,6 +14,9 @@ int maxRTD=4;
 #define DELAY_BETWEEN_LOGGING 60000
 
 #define MINIMUM_COOL  60000
+
+#define MINIMUM_VALID_TEMP  20.0
+#define MAXIMUM_VALID_TEMP  50.0
 
 int iCoolUpdates = 0;
 
@@ -564,13 +567,21 @@ void loop()
           max[i].clearFault();
         }
         else
+        if ((temp[i] < MINIMUM_VALID_TEMP) || (temp[i] > MAXIMUM_VALID_TEMP))
+        {
+          Serial.print(i+1); Serial.print( " Temp = "); Serial.print(temp[i]); 
+          Serial.println(" INVALID");
+        }
+        else
         {          
           Serial.print(i+1); Serial.print( " Temp = "); Serial.print(temp[i]); 
-          Serial.print(" Delta = "); Serial.print(temp[i] - Setpoint[i]);      
-          Serial.print(" Offset = "); Serial.print(offsetTemp[i]);      
+          Serial.print(", Delta = "); Serial.print(temp[i] - Setpoint[i]);      
+          Serial.print(", Offset = "); Serial.print(offsetTemp[i]);      
         }
 
-        if (fault[i])
+        if (fault[i]  || (temp[i] < MINIMUM_VALID_TEMP) || (temp[i] > MAXIMUM_VALID_TEMP))
+
+        
         {
           if ((timeCurrent - timeLastLog) >= DELAY_BETWEEN_LOGGING)
           {
@@ -581,10 +592,19 @@ void loop()
             display.setCursor(xOffset+(2*(5+1)), yOffset+((i+1)*lineSpacing));
             display.print("FAULT");
     
-            delta[i] = temp[i] - Setpoint[i];
             display.fillRect(xOffset+(14*(5+1)), yOffset+((i+1)*lineSpacing),5*(5+1),8,BLACK);
             display.setCursor(xOffset+(14*(5+1)), yOffset+((i+1)*lineSpacing));
-            display.print(fault[i]);                 
+
+            if (fault[i])
+            {
+              display.print(fault[i]);                 
+              SDLogging(szUnit, Setpoint[i], -1, fault[i], 0, 0, "FAULT");
+            }
+            else
+            {
+              display.print(0);                 
+              SDLogging(szUnit, Setpoint[i], 0, -1, 0, 0, "FAULT");
+            }
           }
         }
         else
@@ -623,10 +643,10 @@ void loop()
             }
             myPID[i].Compute();
           }
-          Serial.print("  Setpoint = "); Serial.print(Setpoint[i]); Serial.print(", "); 
-          Serial.print(strHeatingOrCooling); 
+          Serial.print(", Setpoint = "); Serial.print(Setpoint[i]); 
           double DutyCycle = (Output[i]/255.0)*100;
-          Serial.print(", DutyCycle = "); Serial.print(DutyCycle); Serial.println("%");
+          Serial.print(", DutyCycle = "); Serial.print(DutyCycle); Serial.print("%");
+          Serial.print(", "); Serial.println(strHeatingOrCooling); 
           
 //          if (gap > 0.1)
           if (bOff == 0)
@@ -865,7 +885,7 @@ void loop()
 void displayFrame()
 {
   display.clearDisplay();
-  for(int i=0; i<maxRTD; i++) {
+  for(int i=0; i<2; i++) {
   display.drawRoundRect(i, i, display.width()-2*i, display.height()-2*i,
       display.height()/4, WHITE);
   }
@@ -888,7 +908,7 @@ void SetupSDCardOperations()
     display.print("*** ERROR ***   ");
     display.setCursor(xOffset, yOffset+(2*lineSpacing));
     display.print("SD Init Failed  ");
-    display.setCursor(xOffset, yOffset+(2*lineSpacing));
+    display.setCursor(xOffset, yOffset+(3*lineSpacing));
     display.print("System HALTED!");
     display.display();
     while (1);
