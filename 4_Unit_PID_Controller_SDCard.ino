@@ -3,10 +3,10 @@
  4xTomPort PID Controller
  **************************************************************************/
 
-#define VERSION "Ver 0.5 2019-06-24"
+#define VERSION "Ver 0.5 2019-06-27"
 
 
-int maxRTD=4;
+int maxRTD=1;
 
 #define DELAY_DIVISOR 16    // compensate for the change of frequency for Timer 0
 
@@ -43,7 +43,8 @@ double SetpointNew;
 double prevTemp[4] = {0.0, 0.0, 0.0, 0.0};
 double prevSetpoint[4] = {31.0, 31.0, 31.0, 31.0};
 
-double offsetTemp[4] = {-0.16, 0.06, -0.01, 0.12};
+//double offsetTemp[4] = {-0.16, 0.06, -0.01, 0.12};
+double offsetTemp[4] = {0.0, 0.0, 0.0, 0.0};
 
 double Kp = 2;
 double Ki = 5;
@@ -885,7 +886,7 @@ void loop()
 void displayFrame()
 {
   display.clearDisplay();
-  for(int i=0; i<2; i++) {
+  for(int i=0; i<1; i++) {
   display.drawRoundRect(i, i, display.width()-2*i, display.height()-2*i,
       display.height()/4, WHITE);
   }
