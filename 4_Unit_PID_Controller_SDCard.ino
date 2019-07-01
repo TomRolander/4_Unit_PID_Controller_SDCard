@@ -3,7 +3,7 @@
  4xTomPort PID Controller
  **************************************************************************/
 
-#define VERSION "Ver 0.5 2019-06-27"
+#define VERSION "Ver 0.6 2019-07-01"
 
 
 int maxRTD=1;
@@ -15,7 +15,7 @@ int maxRTD=1;
 
 #define MINIMUM_COOL  60000
 
-#define MINIMUM_VALID_TEMP  20.0
+#define MINIMUM_VALID_TEMP  10.0
 #define MAXIMUM_VALID_TEMP  50.0
 
 int iCoolUpdates = 0;
