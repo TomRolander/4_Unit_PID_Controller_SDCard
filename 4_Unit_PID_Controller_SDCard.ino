@@ -392,6 +392,29 @@ TCCR0B = TCCR0B & B11111000 | B00000101;    // set timer 0 divisor to  1024 for 
   display.display();
   delay(2000/DELAY_DIVISOR);
 
+  Serial.println("Offsets");
+  for (int i=0; i<4; i++)
+  {
+    Serial.print(" Offset");
+    Serial.print(i+1);
+    Serial.print(" = ");
+    Serial.println(offsetTemp[i]);
+  }
+
+  displayFrame();
+  display.setCursor(xOffset, yOffset+(0*lineSpacing));
+  display.print("Offsets");
+  for (int i=0; i<4; i++)
+  {  
+    display.setCursor(xOffset, yOffset+((i+1)*lineSpacing));
+    display.print(" Offset");
+    display.print(i+1);
+    display.print(" = ");
+    display.print(offsetTemp[i]);
+  }
+  display.display();
+  delay(2000/DELAY_DIVISOR);
+
   displayRun();
 
   //turn the PID on
@@ -493,7 +516,8 @@ void loop()
       }
     
       timeLastPID = timeCurrent;
-
+      int bSetTimeCurrent = false;
+      
       for (int i=0; i<maxRTD; i++)
       {
         char szUnit[] = "Unit?";
@@ -581,12 +605,10 @@ void loop()
         }
 
         if (fault[i]  || (temp[i] < MINIMUM_VALID_TEMP) || (temp[i] > MAXIMUM_VALID_TEMP))
-
-        
         {
           if ((timeCurrent - timeLastLog) >= DELAY_BETWEEN_LOGGING)
           {
-//            timeLastLog = timeCurrent;          
+            bSetTimeCurrent = true;
             SDLogging(szUnit, Setpoint[i], 0, fault[i], 0, 0, "FAULT");
 
             display.fillRect(xOffset+(2*(5+1)), yOffset+((i+1)*lineSpacing),5*(5+1),8,BLACK);
@@ -696,9 +718,11 @@ void loop()
               display.print('+');
             display.print(delta[i]);      
           } 
-       }
-       
-      } 
+       }      
+      }
+      if (bSetTimeCurrent)
+        timeLastLog = timeCurrent;          
+     
       display.display();  
       break;
 
@@ -1064,6 +1088,77 @@ void SetupSDCardOperations()
         Kd = iControl[2];
         POn = iControl[3];
         
+        display.print("* processed *");
+        display.display();
+        delay(2000/DELAY_DIVISOR);      
+      }
+      else
+      {
+        fileSDCard.close();
+      }
+    }    
+  }
+  else 
+  {
+    display.print("* does not exist");
+    display.display();
+  }
+  delay(2000/DELAY_DIVISOR);
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+// OFFSETS.CSV Processing
+  displayFrame();
+  display.setCursor(xOffset, yOffset+(1*lineSpacing));
+  display.print("* Test OFFSETS.CSV");
+  display.setCursor(xOffset, yOffset+(2*lineSpacing));
+  if (SD.exists("OFFSETS.CSV")) 
+  {
+    fileSDCard = SD.open("OFFSETS.CSV");
+    if (fileSDCard) 
+    {
+      char *ptr3 = 0;
+      
+      if (fileSDCard.available())
+      {
+        char strOffset[256];
+        char strOffsetCopy[256];
+        fileSDCard.read(strOffset, sizeof(strOffset));
+        fileSDCard.close();
+        strOffset[sizeof(strOffset)-1] = '\0';
+        char *ptr1 = strchr(&strOffset[0],'\n');
+        if (ptr1 != 0)
+        {
+            *ptr1++ = '\0';
+        }
+        Serial.println("Set Offsets:");
+        Serial.println(strOffset);
+
+        ptr3 = strchr(ptr1,'\n');
+        if (ptr3 != 0)
+        {
+            *ptr3++ = '\0';
+            strcpy(strOffsetCopy, ptr1);
+        }
+        Serial.println(ptr1);
+        
+        for (int i=0; i<4; i++)
+        {
+          offsetTemp[i] = 0.0;
+          char *ptr2 = strchr(ptr1,',');
+          if (ptr2 != 0)
+          {
+            *ptr2 = '\0';
+            offsetTemp[i] = atof(ptr1);
+            ptr1 = &ptr2[1];
+          }
+          else
+          {
+            if (i == 3)
+              offsetTemp[3] = atof(ptr1);
+            break;
+          }
+        }
         display.print("* processed *");
         display.display();
         delay(2000/DELAY_DIVISOR);      
