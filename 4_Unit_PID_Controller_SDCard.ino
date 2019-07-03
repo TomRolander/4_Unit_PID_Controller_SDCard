@@ -3,10 +3,10 @@
  4xTomPort PID Controller
  **************************************************************************/
 
-#define VERSION "Ver 0.6 2019-07-01"
+#define VERSION "Ver 0.6 2019-07-03"
 
 
-int maxRTD=1;
+int maxRTD=4;
 
 #define DELAY_DIVISOR 16    // compensate for the change of frequency for Timer 0
 
