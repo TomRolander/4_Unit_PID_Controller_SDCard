@@ -3,7 +3,7 @@
  4xTomPort PID Controller
  **************************************************************************/
 
-#define VERSION "Ver 0.6 2019-07-03"
+#define VERSION "Ver 0.7 2019-07-05"
 
 
 int maxRTD=4;
@@ -226,6 +226,19 @@ void setup()
   Serial.begin(9600);
   Serial.println("");
   Serial.println("Serial Initialized...");
+
+#if 0
+  for (int i=0; i< 4; i++)
+  {
+    pinMode(HeaterUnits[i], OUTPUT);
+    //digitalWrite(HeaterUnits[i], HIGH);
+    analogWrite(HeaterUnits[i], 255.0);
+    pinMode(CoolerUnits[i], OUTPUT);
+  }
+  Serial.println("SYSTEM HALTED!");
+  while (1);
+#endif
+  
   
 //For Arduino Mega1280, Mega2560, MegaADK, Spider or any other board using ATmega1280 or ATmega2560
 
