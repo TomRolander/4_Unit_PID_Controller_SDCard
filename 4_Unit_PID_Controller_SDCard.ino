@@ -242,7 +242,12 @@ void setup()
   Serial.println("SYSTEM HALTED!");
   while (1);
 #endif
-  
+
+  for (int i=0; i< 4; i++)
+  {
+    for (int j=0; j<240; j++)
+      Setpoints_Thousandths[i][j] = 31000;
+  }
   
 //For Arduino Mega1280, Mega2560, MegaADK, Spider or any other board using ATmega1280 or ATmega2560
 
