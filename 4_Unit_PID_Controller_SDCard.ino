@@ -1,10 +1,20 @@
 
 
 /**************************************************************************
- 4xTomPort PID Controller
+  4 Unit PID Controller
+
+  Original Code:  2019-07-08 
+  
+  Tom Rolander, MSEE
+  Mentor, Circuit Design & Software
+  Miller Library, Fabrication Lab
+  Hopkins Marine Station, Stanford University,
+  120 Ocean View Blvd, Pacific Grove, CA 93950
+  +1 831.915.9526 | rolander@stanford.edu
+
  **************************************************************************/
 
-#define VERSION "Ver 0.7 2019-07-05"
+#define VERSION "Ver 0.8 2019-07-08"
 
 
 int maxRTD=4;
@@ -19,23 +29,15 @@ int maxRTD=4;
 #define MINIMUM_VALID_TEMP  10.0
 #define MAXIMUM_VALID_TEMP  50.0
 
-int iCoolUpdates = 0;
+int iCoolUpdates[4] = {0,0,0,0};
 
 unsigned long timeLastPID = 0;
 unsigned long timeLastLog = 0;
 
-/********************************************************
- * PID Proportional on measurement Example
- * Setting the PID to use Proportional on measurement will 
- * make the output move more smoothly when the setpoint 
- * is changed.  In addition, it can eliminate overshoot
- * in certain processes like sous-vides.
- ********************************************************/
-
 #include <PID_v1.h>
 
 //Define Variables we'll be connecting to with the PID library
-double Setpoint[4] = {22.0, 22.0, 22.0, 22.0};
+double Setpoint[4] = {31.0, 31.0, 31.0, 31.0};
 double Input[4] = {0.0, 0.0, 0.0, 0.0};
 double Output[4] = {0.0, 0.0, 0.0, 0.0};
 
@@ -226,6 +228,7 @@ void setup()
   
   Serial.begin(9600);
   Serial.println("");
+  Serial.println(VERSION);
   Serial.println("Serial Initialized...");
 
 #if 0
@@ -649,67 +652,66 @@ void loop()
           Input[i] = temp[i];
 
           char *strHeatingOrCooling;
-          double gap = abs(Setpoint[i]-Input[i]); //distance away from setpoint
-          int bOff = 0; 
 
-          if (gap <= 0.1 &&
-              ((Direction[i] == DIRECT && Input[i] >= Setpoint[i]) ||
-               (Direction[i] == REVERSE && iCoolUpdates >= (MINIMUM_COOL/DELAY_BETWEEN_UPDATES))))
+          if (iCoolUpdates[i] > 0)
           {
-            // PWM of 0 when within 0.1C
-            Output[i] = 0.0;
-            analogWrite(CoolerUnits[i],0.0); 
-            analogWrite(HeaterUnits[i],0.0);                         
-            strHeatingOrCooling = "OFF ";
-            bOff = 1;
-            iCoolUpdates = 0;
+            iCoolUpdates[i]++;
+            Output[i] = 255.0;
+            if (iCoolUpdates[i] >= (MINIMUM_COOL/DELAY_BETWEEN_UPDATES))
+            {
+              iCoolUpdates[i] = 0;
+              strHeatingOrCooling = "COOL (completed)";
+            }
+            else
+            {
+              strHeatingOrCooling = "COOL (waiting)";
+            }
           }
           else
-          {            
-            if (Input[i] <= Setpoint[i])
+          {
+            if (Input[i] >= Setpoint[i])
             {
-              Direction[i] = DIRECT;
-              myPID[i].SetControllerDirection(Direction[i]);
-              strHeatingOrCooling = "Heat";
-            }
-            else
-            {            
+              // Cooling
               Direction[i] = REVERSE;
               myPID[i].SetControllerDirection(Direction[i]);
-              strHeatingOrCooling = "Cool";
-            }
-            myPID[i].Compute();
-          }
-          Serial.print(", Setpoint = "); Serial.print(Setpoint[i]); 
-          double DutyCycle = (Output[i]/255.0)*100;
-          Serial.print(", DutyCycle = "); Serial.print(DutyCycle); Serial.print("%");
-          Serial.print(", "); Serial.println(strHeatingOrCooling); 
-          
-//          if (gap > 0.1)
-          if (bOff == 0)
-          {
-            if (Input[i] <= Setpoint[i])
-            {
-              analogWrite(HeaterUnits[i],Output[i]); 
-              analogWrite(CoolerUnits[i],0.0); 
-              iCoolUpdates = 0;
-            }
-            else
-            {
-              if (Input[i] <= (Setpoint[i] + 0.1))
+              myPID[i].Compute();
+              if (Input[i] > Setpoint[i] + 0.1)
               {
-                analogWrite(CoolerUnits[i],0.0);
-                strHeatingOrCooling = "OFF";
+                // Turn on COOLER
+                iCoolUpdates[i] = 1;
+                strHeatingOrCooling = "Cool";
+                Output[i] = 255.0;  // Force 100% Duty Cycle for cooling
+                analogWrite(HeaterUnits[i],0.0); 
+                analogWrite(CoolerUnits[i],Output[i]);                 
               }
               else
               {
-                Output[i] = 255.0;  // Force 100% Duty Cycle for cooling
-                analogWrite(CoolerUnits[i],Output[i]); 
-                iCoolUpdates++;
+                // Turn off COOLER and HEATER
+                strHeatingOrCooling = "OFF";
+                Output[i] = 0.0;
+                analogWrite(HeaterUnits[i],Output[i]); 
+                analogWrite(CoolerUnits[i],Output[i]);                 
               }
-              analogWrite(HeaterUnits[i],0.0);                         
             }
+            else
+            {
+              // Heating
+              Direction[i] = DIRECT;
+              myPID[i].SetControllerDirection(Direction[i]);
+              myPID[i].Compute();
+              strHeatingOrCooling = "Heat";
+              analogWrite(HeaterUnits[i],Output[i]); 
+              analogWrite(CoolerUnits[i],0.0); 
+              iCoolUpdates[i] = 0;
+            }
+            
           }
+
+          Serial.print(", Setpoint = "); Serial.print(Setpoint[i]); 
+          double DutyCycle = (Output[i]/255.0)*100;
+          Serial.print(", DutyCycle = "); Serial.print(DutyCycle); Serial.print("%");
+          Serial.print(", "); 
+          Serial.println(strHeatingOrCooling); 
 
           if ((timeCurrent - timeLastLog) >= DELAY_BETWEEN_LOGGING)
           {
@@ -731,8 +733,9 @@ void loop()
             if (delta[i] >= 0.0)
               display.print('+');
             display.print(delta[i]);      
-          } 
-       }      
+          }
+           
+       }             
       }
       if (bSetTimeCurrent)
         timeLastLog = timeCurrent;          
