@@ -14,7 +14,7 @@
 
  **************************************************************************/
 
-#define VERSION "Ver 0.8 2019-08-30"
+#define VERSION "Ver 0.8 2019-07-10"
 
 
 int maxRTD=1;
@@ -435,52 +435,6 @@ TCCR0B = TCCR0B & B11111000 | B00000101;    // set timer 0 divisor to  1024 for 
     display.print(i+1);
     display.print(" = ");
     display.print(offsetTemp[i]);
-  }
-  display.display();
-  delay(2000/DELAY_DIVISOR);
-
-  Serial.println("MinPcts");
-  for (int i=0; i<4; i++)
-  {
-    Serial.print(" MinPcts");
-    Serial.print(i+1);
-    Serial.print(" = ");
-    Serial.println((MinPctDutyCycle[i]*100)/255);
-  }
-
-  displayFrame();
-  display.setCursor(xOffset, yOffset+(0*lineSpacing));
-  display.print("MinPcts");
-  for (int i=0; i<4; i++)
-  {  
-    display.setCursor(xOffset, yOffset+((i+1)*lineSpacing));
-    display.print(" MinPcts");
-    display.print(i+1);
-    display.print(" = ");
-    display.print((MinPctDutyCycle[i]*100)/255);
-  }
-  display.display();
-  delay(2000/DELAY_DIVISOR);
-
-  Serial.println("MaxPcts");
-  for (int i=0; i<4; i++)
-  {
-    Serial.print(" MaxPcts");
-    Serial.print(i+1);
-    Serial.print(" = ");
-    Serial.println((MaxPctDutyCycle[i]*100)/255);
-  }
-
-  displayFrame();
-  display.setCursor(xOffset, yOffset+(0*lineSpacing));
-  display.print("MaxPcts");
-  for (int i=0; i<4; i++)
-  {  
-    display.setCursor(xOffset, yOffset+((i+1)*lineSpacing));
-    display.print(" MaxPcts");
-    display.print(i+1);
-    display.print(" = ");
-    display.print((MaxPctDutyCycle[i]*100)/255);
   }
   display.display();
   delay(2000/DELAY_DIVISOR);
@@ -1191,24 +1145,24 @@ void SetupSDCardOperations()
       
       if (fileSDCard.available())
       {
-        char strOffsets[256];
-        char strOffsetsCopy[256];
-        fileSDCard.read(strOffsets, sizeof(strOffsets));
+        char strVal[256];
+        char strValCopy[256];
+        fileSDCard.read(strVal, sizeof(strVal));
         fileSDCard.close();
-        strOffsets[sizeof(strOffsets)-1] = '\0';
-        char *ptr1 = strchr(&strOffsets[0],'\n');
+        strVal[sizeof(strVal)-1] = '\0';
+        char *ptr1 = strchr(&strVal[0],'\n');
         if (ptr1 != 0)
         {
             *ptr1++ = '\0';
         }
         Serial.println("Set Offsets:");
-        Serial.println(strOffsets);
+        Serial.println(strVal);
 
         ptr3 = strchr(ptr1,'\n');
         if (ptr3 != 0)
         {
             *ptr3++ = '\0';
-            strcpy(strOffsetsCopy, ptr1);
+            strcpy(strValCopy, ptr1);
         }
         Serial.println(ptr1);
         
@@ -1246,150 +1200,6 @@ void SetupSDCardOperations()
   }
   delay(2000/DELAY_DIVISOR);
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#if 1
-
-// MINPCTS.CSV Processing
-  displayFrame();
-  display.setCursor(xOffset, yOffset+(1*lineSpacing));
-  display.print("* Test MINPCTS.CSV");
-  display.setCursor(xOffset, yOffset+(2*lineSpacing));
-  if (SD.exists("MINPCTS.CSV")) 
-  {
-    fileSDCard = SD.open("MINPCTS.CSV");
-    if (fileSDCard) 
-    {
-      char *ptr3 = 0;
-      
-      if (fileSDCard.available())
-      {
-        char strVal[256];
-        char strValCopy[256];
-        fileSDCard.read(strVal, sizeof(strVal));
-        fileSDCard.close();
-        strVal[sizeof(strVal)-1] = '\0';
-        char *ptr1 = strchr(&strVal[0],'\n');
-        if (ptr1 != 0)
-        {
-            *ptr1++ = '\0';
-        }
-        Serial.println("Set Min Pcts:");
-        Serial.println(strVal);
-
-        ptr3 = strchr(ptr1,'\n');
-        if (ptr3 != 0)
-        {
-            *ptr3++ = '\0';
-            strcpy(strValCopy, ptr1);
-        }
-        Serial.println(ptr1);
-        
-        for (int i=0; i<4; i++)
-        {
-          MinPctDutyCycle[i] = 0.0;
-          char *ptr2 = strchr(ptr1,',');
-          if (ptr2 != 0)
-          {
-            *ptr2 = '\0';
-            MinPctDutyCycle[i] = (atof(ptr1)/100.0)*255.0;
-            ptr1 = &ptr2[1];
-          }
-          else
-          {
-            if (i == 3)
-              MinPctDutyCycle[3] = (atof(ptr1)/100.0)*255.0;
-            break;
-          }
-        }
-        display.print("* processed *");
-        display.display();
-        delay(2000/DELAY_DIVISOR);      
-      }
-      else
-      {
-        fileSDCard.close();
-      }
-    }    
-  }
-  else 
-  {
-    display.print("* does not exist");
-    display.display();
-  }
-  delay(2000/DELAY_DIVISOR);
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-// MAXPCTS.CSV Processing
-  displayFrame();
-  display.setCursor(xOffset, yOffset+(1*lineSpacing));
-  display.print("* Test MAXPCTS.CSV");
-  display.setCursor(xOffset, yOffset+(2*lineSpacing));
-  if (SD.exists("MAXPCTS.CSV")) 
-  {
-    fileSDCard = SD.open("MAXPCTS.CSV");
-    if (fileSDCard) 
-    {
-      char *ptr3 = 0;
-      
-      if (fileSDCard.available())
-      {
-        char strVal[256];
-        char strValCopy[256];
-        fileSDCard.read(strVal, sizeof(strVal));
-        fileSDCard.close();
-        strVal[sizeof(strVal)-1] = '\0';
-        char *ptr1 = strchr(&strVal[0],'\n');
-        if (ptr1 != 0)
-        {
-            *ptr1++ = '\0';
-        }
-        Serial.println("Set Max Pcts:");
-        Serial.println(strVal);
-
-        ptr3 = strchr(ptr1,'\n');
-        if (ptr3 != 0)
-        {
-            *ptr3++ = '\0';
-            strcpy(strValCopy, ptr1);
-        }
-        Serial.println(ptr1);
-        
-        for (int i=0; i<4; i++)
-        {
-          MaxPctDutyCycle[i] = 0.0;
-          char *ptr2 = strchr(ptr1,',');
-          if (ptr2 != 0)
-          {
-            *ptr2 = '\0';
-            MaxPctDutyCycle[i] = (atof(ptr1)/100.0)*255.0;
-            ptr1 = &ptr2[1];
-          }
-          else
-          {
-            if (i == 3)
-              MaxPctDutyCycle[3] = (atof(ptr1)/100.0)*255.0;
-            break;
-          }
-        }
-        display.print("* processed *");
-        display.display();
-        delay(2000/DELAY_DIVISOR);      
-      }
-      else
-      {
-        fileSDCard.close();
-      }
-    }    
-  }
-  else 
-  {
-    display.print("* does not exist");
-    display.display();
-  }
-  delay(2000/DELAY_DIVISOR);
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#endif
 
 
 // SETPNTx.CSV Processing
