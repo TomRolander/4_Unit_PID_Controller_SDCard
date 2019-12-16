@@ -14,7 +14,7 @@
 
  **************************************************************************/
 
-#define VERSION "Ver 0.8 2019-08-30"
+#define VERSION "Ver 0.8 2019-12-16"
 
 
 int maxRTD=1;
@@ -1084,8 +1084,7 @@ void SetupSDCardOperations()
         //display.setCursor(xOffset, yOffset+(2*lineSpacing));
         display.print("* processed *");
         display.display();
-        delay(2000/DELAY_DIVISOR);
-      
+        delay(2000/DELAY_DIVISOR);     
       }
       else
       {
@@ -1093,6 +1092,49 @@ void SetupSDCardOperations()
       }
     } 
     
+  }
+  else 
+  {
+    display.print("* does not exist");
+    display.display();
+  }
+  delay(2000/DELAY_DIVISOR);
+
+// TEST.CSV Processing
+  displayFrame();
+  display.setCursor(xOffset, yOffset+(1*lineSpacing));
+  display.print("* Test TEST.CSV");
+  display.setCursor(xOffset, yOffset+(2*lineSpacing));
+  if (SD.exists("TEST.CSV")) 
+  {
+    fileSDCard = SD.open("TEST.CSV");
+    if (fileSDCard) 
+    {
+      if (fileSDCard.available())
+      {
+        DoTests();
+        
+        displayFrame();
+        display.setCursor(xOffset, yOffset+(1*lineSpacing));
+        display.print("* TEST System");
+        display.setCursor(xOffset, yOffset+(3*lineSpacing));
+        display.print("* processed *");
+        display.display();
+        delay(2000/DELAY_DIVISOR);   
+
+        displayFrame();
+        display.setCursor(xOffset, yOffset+(1*lineSpacing));
+        display.print("* Test TEST.CSV");
+        display.setCursor(xOffset, yOffset+(3*lineSpacing));
+        display.print("System HALTED!");
+        display.display();
+        while (1);
+      }
+      else
+      {
+        fileSDCard.close();
+      }
+    }    
   }
   else 
   {
@@ -1611,5 +1653,77 @@ void ReadSetpoints(unsigned int* Setpoints_Thousandths)
     Serial.print(" Index: ");
     Serial.println(index);
 #endif
+  }
+}
+
+bool readTest(int* iUnit, char* cHeatOrCool, int* iSeconds) {
+  char line[40], *ptr, *str;
+  if (!readLine(line, sizeof(line))) {
+    return false;  // EOF or too long
+  }
+  ptr = &line[0];
+  *iUnit = atoi(ptr);
+  *cHeatOrCool = ptr[1];
+  
+  while (*ptr) {
+    if (*ptr++ == ',') break;
+  }
+  *iSeconds = atoi(ptr);
+  return str != ptr;  // true if number found
+}
+
+void DoTests()
+{
+  int iUnit;
+  char cHeatOrCool;
+  int iSeconds;
+
+  for (int i=0; i< 4; i++)
+  {
+    pinMode(HeaterUnits[i], OUTPUT);
+    analogWrite(HeaterUnits[i], 0.0);
+    pinMode(CoolerUnits[i], OUTPUT);
+    analogWrite(CoolerUnits[i], 0.0);
+  }
+  
+  while (readTest(&iUnit, &cHeatOrCool, &iSeconds)) {
+    Serial.print("Unit: ");
+    Serial.print(iUnit);
+    Serial.print(cHeatOrCool);
+    Serial.print(" Seconds: ");
+    Serial.println(iSeconds);
+
+    displayFrame();
+    display.setCursor(xOffset, yOffset+(1*lineSpacing));
+    display.print("* TEST System");
+    display.setCursor(xOffset, yOffset+(2*lineSpacing));
+    display.print("Unit: ");
+    display.print(iUnit);
+    display.print(cHeatOrCool);
+    display.setCursor(xOffset, yOffset+(3*lineSpacing));
+    display.print("Secs: ");
+    display.print(iSeconds);
+    display.display();
+
+    if (iUnit >= 1 && iUnit <= 4)
+    {
+      if (cHeatOrCool == 'H')
+        analogWrite(HeaterUnits[iUnit-1], 255.0);
+      else
+      if (cHeatOrCool == 'C')
+        analogWrite(CoolerUnits[iUnit-1], 255.0);
+      else
+      {
+        break;  
+      }
+      
+      delay((1000*iSeconds)/DELAY_DIVISOR);
+      
+      if (cHeatOrCool == 'H')
+        analogWrite(HeaterUnits[iUnit-1], 0.0);
+      else
+      if (cHeatOrCool == 'C')
+        analogWrite(CoolerUnits[iUnit-1], 0.0);      
+    }
   }
 }
