@@ -14,10 +14,10 @@
 
  **************************************************************************/
 
-#define VERSION "Ver 0.8 2019-12-16"
+#define VERSION "Ver 0.8 2019-12-22"
 
 
-int maxRTD=1;
+int maxRTD=4;
 
 #define DELAY_DIVISOR 16    // compensate for the change of frequency for Timer 0
 
