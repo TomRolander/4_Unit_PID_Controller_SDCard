@@ -487,14 +487,27 @@ TCCR0B = TCCR0B & B11111000 | B00000101;    // set timer 0 divisor to  1024 for 
 
   displayRun();
 
+  Serial.println("Min and Max Limits");
+
   //turn the PID on
   for (int i=0; i<4; i++)
   {
     //initialize the variables we're linked to
+
+    Serial.print(i+1);
+    Serial.print(" ");
+    Serial.print(" MinLimit");
+    Serial.print(" = ");
+    Serial.print(MinPctDutyCycle[i]);
+    Serial.print(" ");
+    Serial.print(" MaxLimit");
+    Serial.print(" = ");
+    Serial.println(MaxPctDutyCycle[i]);
+    
     Input[i] = 31.0;
     Setpoint[i] = 31.0;
     myPID[i].SetMode(AUTOMATIC);
-    myPID[i].SetOutputLimits((MinPctDutyCycle[i]/100.0)*255.0,(MaxPctDutyCycle[i]/100.0)*255.0);
+    myPID[i].SetOutputLimits(MinPctDutyCycle[i],MaxPctDutyCycle[i]);
     Direction[i] = DIRECT;
     myPID[i].SetControllerDirection(Direction[i]);
   }
@@ -1333,12 +1346,14 @@ void SetupSDCardOperations()
           if (ptr2 != 0)
           {
             *ptr2 = '\0';
+            //NOTE: Converting Pct into range 0-255
             MinPctDutyCycle[i] = (atof(ptr1)/100.0)*255.0;
             ptr1 = &ptr2[1];
           }
           else
           {
             if (i == 3)
+              //NOTE: Converting Pct into range 0-255
               MinPctDutyCycle[3] = (atof(ptr1)/100.0)*255.0;
             break;
           }
@@ -1404,12 +1419,14 @@ void SetupSDCardOperations()
           if (ptr2 != 0)
           {
             *ptr2 = '\0';
+            //NOTE: Converting Pct into range 0-255
             MaxPctDutyCycle[i] = (atof(ptr1)/100.0)*255.0;
             ptr1 = &ptr2[1];
           }
           else
           {
             if (i == 3)
+              //NOTE: Converting Pct into range 0-255
               MaxPctDutyCycle[3] = (atof(ptr1)/100.0)*255.0;
             break;
           }
