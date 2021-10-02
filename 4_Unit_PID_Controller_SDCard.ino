@@ -1,5 +1,3 @@
-
-
 /**************************************************************************
   4 Unit PID Controller
 
@@ -14,7 +12,7 @@
 
  **************************************************************************/
 
-#define VERSION "Ver 0.8 2019-12-23"
+#define VERSION "Ver 0.9 2021-09-15"
 
 
 int maxRTD=4;
@@ -365,6 +363,24 @@ TCCR0B = TCCR0B & B11111000 | B00000101;    // set timer 0 divisor to  1024 for 
     // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
   }
   now = rtc.now();
+
+  Serial.println("RTC Time:");
+  Serial.print(now.year(), DEC);
+  Serial.print("/");
+  Serial.print(now.month(), DEC);
+  Serial.print("/");
+  Serial.print(now.day(), DEC);
+  Serial.print(" ");
+  if (now.hour() < 10) Serial.print("0");
+  Serial.print(now.hour(), DEC);
+  Serial.print(":");
+  if (now.minute() < 10) Serial.print("0");
+  Serial.print(now.minute(), DEC);
+  Serial.print(":");
+  if (now.second() < 10) Serial.print("0");
+  Serial.print(now.second(), DEC);
+  Serial.println(" ");
+
 
   displayFrame();
   display.setCursor(xOffset, yOffset+(1*lineSpacing));
