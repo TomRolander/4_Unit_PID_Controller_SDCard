@@ -12,8 +12,9 @@
 
  **************************************************************************/
 
-#define VERSION "Ver 0.9 2021-09-15"
+#define VERSION "Ver 0.9 2021-10-04"
 
+#define DEBUGGING 0
 
 int maxRTD=4;
 
@@ -151,6 +152,12 @@ File fileSDCard;
 // MKRZero SD: SDCARD_SS_PIN
 #define chipSelectSDCard 10
 
+char cEncodedBuffer[512];
+char cDecodedBuffer[512];
+//char cEncodedBuffer[1024 + 64];
+//char cDecodedBuffer[1024 + 64];
+char *pLogging = &cEncodedBuffer[0];
+
 bool bSDLogFail = false;
 int  iToggle = 0;
 
@@ -221,6 +228,7 @@ int buttonDownStartTime = 0;
 int buttonDownCurrentTime = 0;
 int buttonDownIncrementTime = 0;
 
+void(* resetFunc) (void) = 0;
 
 void setup() 
 {
@@ -230,6 +238,8 @@ void setup()
   Serial.println("");
   Serial.println(VERSION);
   Serial.println("Serial Initialized...");
+
+  Serial1.begin(19200);
 
 #if 0
   for (int i=0; i< 4; i++)
@@ -552,6 +562,8 @@ void displayRun()
 
 void loop() 
 {  
+  FileTransfer();
+  
   now = rtc.now();
   int currentHour = now.hour();
   int currentMin  = now.minute();
@@ -1004,6 +1016,7 @@ void loop()
   }
 
   display.display();
+
 }
 
 void displayFrame()
@@ -1758,5 +1771,459 @@ void DoTests()
       if (cHeatOrCool == 'C')
         analogWrite(CoolerUnits[iUnit-1], 0.0);      
     }
+  }
+}
+
+/* Converts a hex character to its integer value */
+char from_hex(char ch) {
+  return isdigit(ch) ? ch - '0' : tolower(ch) - 'a' + 10;
+}
+
+/* Converts an integer value to its hex character*/
+char to_hex(char code) {
+  static char hex[] = "0123456789abcdef";
+  return hex[code & 15];
+}
+
+#if 0
+void url_encode(char *buf, char *str) {
+  char *pstr = str, *pbuf = buf;
+  while (*pstr) {
+    if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~')
+      *pbuf++ = *pstr;
+    else if (*pstr == ' ')
+      *pbuf++ = '+';
+    else
+      *pbuf++ = '%', *pbuf++ = to_hex(*pstr >> 4), *pbuf++ = to_hex(*pstr & 15);
+    pstr++;
+  }
+  *pbuf = '\0';
+}
+#endif
+
+void url_decode(char *buf, char *str) {
+  char *pstr = str, *pbuf = buf;
+  while (*pstr) {
+    if (*pstr == '%') {
+      if (pstr[1] && pstr[2]) {
+        *pbuf++ = from_hex(pstr[1]) << 4 | from_hex(pstr[2]);
+        pstr += 2;
+      }
+    } else if (*pstr == '+') {
+      *pbuf++ = ' ';
+    } else {
+      *pbuf++ = *pstr;
+    }
+    pstr++;
+  }
+  *pbuf = '\0';
+}
+
+bool readLineFileTransfer(char* line, size_t maxLen) {
+  char sBuffer[128];
+  char sTmp[128];
+  
+  for (size_t n = 0; n < maxLen; n++)
+  {
+    int c = fileSDCard.read();
+    if ( c < 0 && n == 0) return false;  // EOF
+    if (c < 0 || c == '\n')
+    {
+      sBuffer[n] = '\n';
+      sBuffer[n+1] = 0;
+      
+      if (sBuffer[13] != ':' ||
+          sBuffer[11] == ':')
+      {
+        if (sBuffer[7] != '/')
+        {
+          strcpy(sTmp, &sBuffer[5]);
+          strcpy(&sBuffer[6], sTmp);
+          sBuffer[5] = '0';
+        }
+        if (sBuffer[10] != ',')
+        {
+          strcpy(sTmp, &sBuffer[8]);
+          strcpy(&sBuffer[9], sTmp);
+          sBuffer[8] = '0';          
+        }
+        if (sBuffer[13] != ':')
+        {
+          sBuffer[12] = sBuffer[11];
+          sBuffer[11] = '0';
+          sBuffer[13] = ':';
+        }
+      }
+      strcpy(line, sBuffer);      
+      return true;
+    }
+    sBuffer[n] = c;
+  }
+  return false; // line too long
+}
+
+bool seekNextLineStart(size_t maxLen) {
+  for (size_t n = 0; n < maxLen; n++) {
+    int c = fileSDCard.read();
+    if ( c < 0 && n == 0) return false;  // EOF
+    if (c < 0 || c == '\n') {
+      return true;
+    }
+  }
+  return false; // line too long
+}
+
+void FileTransfer(void)
+{
+  if (Serial1.available() > 0)
+  {
+    int iLen;
+
+    iLen = Serial1.readBytesUntil('\r', cEncodedBuffer, sizeof(cEncodedBuffer) - 1);
+    cEncodedBuffer[iLen] = '\0';
+#if DEBUGGING
+    Serial.print("Input len = ");
+    Serial.println(iLen);
+    Serial.print("[");
+    Serial.print(cEncodedBuffer);
+    Serial.println("]");
+#endif
+    char *ptr = strstr(cEncodedBuffer, "&d=");
+    if (ptr == 0)
+      ptr = strstr(cEncodedBuffer, "?h=");
+    if (ptr == 0)
+    {
+#if DEBUGGING
+      Serial.println("INVALID BUFFFER");
+#endif      
+      return;
+    }
+
+    cDecodedBuffer[0] = '\0';
+
+    char *pFilename = strstr(cEncodedBuffer, "GET /?f=");
+    if (pFilename != 0)
+    {
+#if 1
+      char *pOffset = strstr(pFilename, "&o=");
+      if (pOffset != 0)
+      {
+        char *pSize = strstr(pOffset, "&s=");
+        if (pSize != 0)
+        {
+          char *pData = strstr(pSize, "&d=");
+          if (pData != 0)
+          {
+            // Eureka !
+            pOffset[0] = '\0';
+            pSize[0] = '\0';
+            int iOffset = atoi(&pOffset[3]);
+            pData[0] = '\0';
+
+            iLen = strlen(&pData[3]);
+
+#if DEBUGGING
+            Serial.print("Filename: [");
+            Serial.print(&pFilename[8]);
+            Serial.println("]");
+            Serial.print("Offset: ");
+            Serial.println(iOffset);
+            Serial.print("Size: ");
+            Serial.println(atoi(&pSize[3]));
+            Serial.print("Encoded len = ");
+            Serial.println(iLen);
+#endif      
+
+            url_decode(cDecodedBuffer, &pData[3]);
+
+            iLen = strlen(cDecodedBuffer);
+#if DEBUGGING
+            Serial.print("Decoded len = ");
+            Serial.println(iLen);
+            Serial.print("[");
+            Serial.print(cDecodedBuffer);
+            Serial.println("]");
+            Serial.println("Data: ");
+            Serial.println(cDecodedBuffer);
+#endif      
+
+            char sFilename[80] = "";
+
+            if (iOffset == 0)
+            {
+              strcpy(sFilename, &pFilename[8]);
+              char *pFiletype = strstr(sFilename, ".");
+              if (pFiletype != 0)
+                strcpy(pFiletype, ".BAK");
+#if DEBUGGING
+              Serial.print("sFilename: ");
+              Serial.println(sFilename);
+#endif      
+              if (SD.exists(sFilename))
+              {
+#if DEBUGGING
+                Serial.println("SD.remove(sFilename)");
+#endif      
+                SD.remove(sFilename);
+              }
+
+#if DEBUGGING
+              Serial.print("SD.open ");
+              Serial.println(&pFilename[8]);
+#endif      
+
+              fileSDCard = SD.open(&pFilename[8]);
+              if (fileSDCard)
+              {
+                iLen = fileSDCard.size();
+#if DEBUGGING
+                Serial.print("iLen to copy: ");
+                Serial.println(iLen);
+#endif      
+                char *buffer = malloc(iLen);
+                if (buffer == 0)
+                {
+#if DEBUGGING
+                  Serial.println("MALLOC FAILED!");
+#endif      
+                }
+                else
+                {
+#if DEBUGGING
+                  Serial.println("fileSDCard.read");
+#endif      
+                  fileSDCard.read(buffer, iLen);
+                  fileSDCard.close();
+
+                  fileSDCard = SD.open(sFilename, FILE_WRITE);
+                  if (fileSDCard)
+                  {
+#if DEBUGGING
+                    Serial.println("fileSDCard.write");
+#endif      
+                    fileSDCard.write(buffer, iLen);
+                    fileSDCard.close();
+                  }
+                  free(buffer);
+                }
+              }
+#if DEBUGGING
+              Serial.println("SD.remove(&pFilename[8])");
+#endif      
+              SD.remove(&pFilename[8]);
+            }
+
+#if DEBUGGING
+            Serial.print("SD.open ");
+            Serial.println(&pFilename[8]);
+#endif      
+            fileSDCard = SD.open(&pFilename[8], FILE_WRITE);
+            if (fileSDCard)
+            {
+              iLen = strlen(cDecodedBuffer);
+#if DEBUGGING
+              Serial.print("fileSDCard.write ");
+              Serial.println(&pFilename[8]);
+              Serial.print("buffer: ");
+              Serial.println(&pData[3]);
+              Serial.print("len: ");
+              Serial.println(iLen);
+#endif      
+              fileSDCard.write(cDecodedBuffer, iLen);
+              fileSDCard.close();
+
+              resetFunc();
+            }
+          }
+        }
+      }
+#endif      
+    }
+    else
+    {
+#if 1      
+#if DEBUGGING
+    Serial.print("[");
+    Serial.print(cEncodedBuffer);
+    Serial.println("]");
+#endif      
+      char *pHour = strstr(cEncodedBuffer, "GET /?h=");
+      if (pHour == 0)
+      {
+        Serial1.print("0");
+        return;
+      }
+      url_decode(cDecodedBuffer, &pHour[8]);
+      pHour = &cDecodedBuffer[0];
+      char *pColon = strstr(cDecodedBuffer, ":");
+      if (pColon == 0)
+      {
+        Serial1.print("0");
+        return;        
+      }
+      pColon[1] = '\0';
+
+      // we have hour for logging scan
+      char sDateHour[32];
+      char sTmp[32];
+      strcpy(sDateHour, pHour);
+
+#if DEBUGGING
+      Serial.print("Hour = [");
+      Serial.print(sDateHour);
+      Serial.println("]");
+#endif      
+      int iHourLen = strlen(sDateHour);
+
+/*
+xxxx/xx/xx,xx:
+01234567890123
+          1
+*/
+      if (strlen(sDateHour) != 14)
+      {
+        if (sDateHour[7] != '/')
+        {
+          strcpy(sTmp, &sDateHour[5]);
+          strcpy(&sDateHour[6], sTmp);
+          sDateHour[5] = '0';
+        }
+        if (sDateHour[10] != ',')
+        {
+          strcpy(sTmp, &sDateHour[8]);
+          strcpy(&sDateHour[9], sTmp);
+          sDateHour[8] = '0';          
+        }
+        if (sDateHour[13] != ':')
+        {
+          sDateHour[12] = sDateHour[11];
+          sDateHour[11] = '0';
+          sDateHour[13] = ':';
+        }
+      }
+
+//      if (sDateHour[9] == '8')
+//        sDateHour[9] = '7';
+      
+      iHourLen = strlen(sDateHour);
+#if DEBUGGING
+      Serial.print("Hour = [");
+      Serial.print(sDateHour);
+      Serial.println("]");
+      Serial.print("iHourLen = ");
+      Serial.println(iHourLen);
+#endif      
+
+      long lFirst, lLast, lMiddle;
+      int iRet;
+
+      // open logging.csv and match hour
+#if DEBUGGING
+      Serial.println("SD.open LOGGING.CSV");
+#endif      
+      fileSDCard = SD.open("LOGGING.CSV", FILE_READ);
+      if (fileSDCard)
+      {
+        long lFileSize = fileSDCard.size();
+#if DEBUGGING
+        Serial.print("Size = ");
+        Serial.println(lFileSize);
+#endif      
+
+        // Binary search to find date/time start
+        lFirst = 0;
+        lLast = lFileSize - 1;
+        lMiddle = (lFirst+lLast)/2;
+        while (lFirst <= lLast)
+        {
+#if DEBUGGING
+          Serial.print("Seek = ");
+          Serial.println(lMiddle);
+#endif      
+          fileSDCard.seek(lMiddle);
+          seekNextLineStart(256);
+          if (readLineFileTransfer(pLogging, 256) == false)
+            break;
+#if DEBUGGING
+          Serial.println(pLogging);
+#endif      
+          char cSave = pLogging[iHourLen];
+          pLogging[iHourLen] = '\0';
+          iRet = strcmp(pLogging, sDateHour);
+#if DEBUGGING
+          Serial.println(pLogging);
+          Serial.println(iRet);
+#endif      
+          if (iRet < 0)
+            lFirst = lMiddle+1;
+          else
+          if (iRet == 0)
+          {
+            pLogging[iHourLen] = cSave;
+#if DEBUGGING
+            Serial.println(pLogging);
+#endif      
+            break;
+          }
+          else
+            lLast = lMiddle - 1;
+          lMiddle = (lFirst + lLast)/2;
+         }
+         
+        //fileSDCard.seek(0);
+
+//      if (sDateHour[9] == '7')
+//        sDateHour[9] = '8';
+        
+        if (lMiddle < 16000)
+            lMiddle = 0;
+        else
+            lMiddle -= 16000;
+
+#if DEBUGGING
+        Serial.print("lMiddle = ");
+        Serial.println(lMiddle);    
+#endif      
+        fileSDCard.seek(lMiddle);        
+
+                
+        int iOK = true;
+        while (iOK)
+        {
+          if (readLineFileTransfer(pLogging, 256) == false)
+            break;
+          if (strncmp(pLogging, sDateHour, iHourLen) == 0)
+          {
+            while (iOK)
+            {
+              //Serial.print(pLogging);
+
+              Serial1.print(pLogging);
+              while (Serial1.available() == 0)
+                ;
+              Serial1.readBytesUntil('\r', cEncodedBuffer, sizeof(cEncodedBuffer) - 1);
+              
+              if (readLineFileTransfer(pLogging, 256) == false ||
+                  strncmp(pLogging, sDateHour, iHourLen) != 0)
+              {
+                iOK = false;
+                break;
+              }
+            }
+          }
+        }
+#if DEBUGGING
+        Serial.print("\n");
+#endif      
+      }
+      else
+      {
+        Serial1.print("0");
+        return;        
+      }
+#endif
+    }
+
+    Serial1.print("1");
   }
 }
