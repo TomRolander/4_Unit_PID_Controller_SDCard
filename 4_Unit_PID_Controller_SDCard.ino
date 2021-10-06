@@ -12,9 +12,9 @@
 
  **************************************************************************/
 
-#define VERSION "Ver 0.9 2021-10-04"
+#define VERSION "Ver 0.9 2021-10-06"
 
-#define DEBUGGING 0
+//#define DEBUGGING 0
 
 int maxRTD=4;
 
@@ -152,9 +152,9 @@ File fileSDCard;
 // MKRZero SD: SDCARD_SS_PIN
 #define chipSelectSDCard 10
 
-char cEncodedBuffer[512];
-char cDecodedBuffer[512];
 //char cEncodedBuffer[1024 + 64];
+char cEncodedBuffer[256 + 64];
+char *cDecodedBuffer = cEncodedBuffer;
 //char cDecodedBuffer[1024 + 64];
 char *pLogging = &cEncodedBuffer[0];
 
@@ -1819,9 +1819,12 @@ void url_decode(char *buf, char *str) {
   *pbuf = '\0';
 }
 
-bool readLineFileTransfer(char* line, size_t maxLen) {
+bool readLineFileTransfer(char* line, size_t maxLen) 
+{
   char sBuffer[128];
   char sTmp[128];
+//  char sBuffer[256];
+//  char sTmp[256];
   
   for (size_t n = 0; n < maxLen; n++)
   {
@@ -1831,9 +1834,9 @@ bool readLineFileTransfer(char* line, size_t maxLen) {
     {
       sBuffer[n] = '\n';
       sBuffer[n+1] = 0;
-      
       if (sBuffer[13] != ':' ||
-          sBuffer[11] == ':')
+          sBuffer[11] == ':' ||
+          sBuffer[12] == ':')
       {
         if (sBuffer[7] != '/')
         {
@@ -1849,9 +1852,9 @@ bool readLineFileTransfer(char* line, size_t maxLen) {
         }
         if (sBuffer[13] != ':')
         {
-          sBuffer[12] = sBuffer[11];
-          sBuffer[11] = '0';
-          sBuffer[13] = ':';
+          strcpy(sTmp, &sBuffer[11]);
+          strcpy(&sBuffer[12], sTmp);
+          sBuffer[11] = '0';          
         }
       }
       strcpy(line, sBuffer);      
@@ -1861,6 +1864,7 @@ bool readLineFileTransfer(char* line, size_t maxLen) {
   }
   return false; // line too long
 }
+
 
 bool seekNextLineStart(size_t maxLen) {
   for (size_t n = 0; n < maxLen; n++) {
@@ -1875,8 +1879,11 @@ bool seekNextLineStart(size_t maxLen) {
 
 void FileTransfer(void)
 {
+  
   if (Serial1.available() > 0)
   {
+//return;
+
     int iLen;
 
     iLen = Serial1.readBytesUntil('\r', cEncodedBuffer, sizeof(cEncodedBuffer) - 1);
@@ -1899,12 +1906,11 @@ void FileTransfer(void)
       return;
     }
 
-    cDecodedBuffer[0] = '\0';
+    //cDecodedBuffer[0] = '\0';
 
     char *pFilename = strstr(cEncodedBuffer, "GET /?f=");
     if (pFilename != 0)
     {
-#if 1
       char *pOffset = strstr(pFilename, "&o=");
       if (pOffset != 0)
       {
@@ -2031,17 +2037,13 @@ void FileTransfer(void)
 #endif      
               fileSDCard.write(cDecodedBuffer, iLen);
               fileSDCard.close();
-
-              resetFunc();
             }
           }
         }
       }
-#endif      
     }
     else
     {
-#if 1      
 #if DEBUGGING
     Serial.print("[");
     Serial.print(cEncodedBuffer);
@@ -2101,6 +2103,7 @@ xxxx/xx/xx,xx:
           sDateHour[13] = ':';
         }
       }
+      sDateHour[14] = '\0';
 
 //      if (sDateHour[9] == '8')
 //        sDateHour[9] = '7';
@@ -2221,9 +2224,9 @@ xxxx/xx/xx,xx:
         Serial1.print("0");
         return;        
       }
-#endif
     }
 
     Serial1.print("1");
   }
+
 }
