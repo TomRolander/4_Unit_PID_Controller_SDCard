@@ -12,9 +12,9 @@
 
  **************************************************************************/
 
-#define VERSION "Ver 0.9 2021-10-06"
+#define VERSION "Ver 0.9 2021-10-07"
 
-//#define DEBUGGING 0
+#define DEBUGGING 1
 
 int maxRTD=4;
 
@@ -152,11 +152,12 @@ File fileSDCard;
 // MKRZero SD: SDCARD_SS_PIN
 #define chipSelectSDCard 10
 
-//char cEncodedBuffer[1024 + 64];
-char cEncodedBuffer[256 + 64];
-char *cDecodedBuffer = cEncodedBuffer;
-//char cDecodedBuffer[1024 + 64];
+#if 0
+char cEncodedBuffer[1024 + 64];
+//char *cDecodedBuffer = cEncodedBuffer;
+char cDecodedBuffer[1024 + 64];
 char *pLogging = &cEncodedBuffer[0];
+#endif
 
 bool bSDLogFail = false;
 int  iToggle = 0;
@@ -235,9 +236,9 @@ void setup()
   Wire.begin();
   
   Serial.begin(9600);
-  Serial.println("");
+  Serial.println(F(""));
   Serial.println(VERSION);
-  Serial.println("Serial Initialized...");
+  Serial.println(F("Serial Initialized..."));
 
   Serial1.begin(19200);
 
@@ -249,7 +250,7 @@ void setup()
     analogWrite(HeaterUnits[i], 255.0);
     pinMode(CoolerUnits[i], OUTPUT);
   }
-  Serial.println("SYSTEM HALTED!");
+  Serial.println(F("SYSTEM HALTED!"));
   while (1);
 #endif
 
@@ -327,7 +328,7 @@ TCCR0B = TCCR0B & B11111000 | B00000101;    // set timer 0 divisor to  1024 for 
 
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if(!display.begin(SSD1306_SWITCHCAPVCC)) {
-    Serial.println("SSD1306 allocation failed");
+    Serial.println(F("SSD1306 allocation failed"));
     for(;;); // Don't proceed, loop forever
   }
 
@@ -337,9 +338,9 @@ TCCR0B = TCCR0B & B11111000 | B00000101;    // set timer 0 divisor to  1024 for 
   display.cp437(true);         // Use full 256 char 'Code Page 437' font
 
   display.setCursor(xOffset, yOffset+0);     
-  display.print("4 Unit PID");
+  display.print(F("4 Unit PID"));
   display.setCursor(xOffset, yOffset+lineSpacing);     
-  display.print("Hopkins 4xTomPort");
+  display.print(F("Hopkins 4xTomPort"));
   display.setCursor(xOffset, yOffset+(2*lineSpacing));     
   display.print(VERSION);
   display.display();
@@ -353,18 +354,18 @@ TCCR0B = TCCR0B & B11111000 | B00000101;    // set timer 0 divisor to  1024 for 
   {
     displayFrame();
     display.setCursor(xOffset, yOffset+(1*lineSpacing));
-    display.print("*** ERROR ***   ");
+    display.print(F("*** ERROR ***   "));
     display.setCursor(xOffset, yOffset+(2*lineSpacing));
-    display.print("Couldnt find RTC");
+    display.print(F("Couldnt find RTC"));
     while (1);
   } 
   if (! rtc.initialized()) 
   {
     displayFrame();
     display.setCursor(xOffset, yOffset+(1*lineSpacing));
-    display.print("*** WARN ***    ");
+    display.print(F("*** WARN ***    "));
     display.setCursor(xOffset, yOffset+(2*lineSpacing));
-    display.print("RTC isnt running");
+    display.print(F("RTC isnt running"));
     
     // following line sets the RTC to the date & time this sketch was compiled
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
@@ -374,138 +375,138 @@ TCCR0B = TCCR0B & B11111000 | B00000101;    // set timer 0 divisor to  1024 for 
   }
   now = rtc.now();
 
-  Serial.println("RTC Time:");
+  Serial.println(F("RTC Time:"));
   Serial.print(now.year(), DEC);
-  Serial.print("/");
+  Serial.print(F("/"));
   Serial.print(now.month(), DEC);
-  Serial.print("/");
+  Serial.print(F("/"));
   Serial.print(now.day(), DEC);
-  Serial.print(" ");
-  if (now.hour() < 10) Serial.print("0");
+  Serial.print(F(" "));
+  if (now.hour() < 10) Serial.print(F("0"));
   Serial.print(now.hour(), DEC);
-  Serial.print(":");
-  if (now.minute() < 10) Serial.print("0");
+  Serial.print(F(":"));
+  if (now.minute() < 10) Serial.print(F("0"));
   Serial.print(now.minute(), DEC);
-  Serial.print(":");
-  if (now.second() < 10) Serial.print("0");
+  Serial.print(F(":"));
+  if (now.second() < 10) Serial.print(F("0"));
   Serial.print(now.second(), DEC);
-  Serial.println(" ");
+  Serial.println(F(" "));
 
 
   displayFrame();
   display.setCursor(xOffset, yOffset+(1*lineSpacing));
-  display.print("*** DATE ***    ");
+  display.print(F("*** DATE ***    "));
   display.setCursor(xOffset, yOffset+(2*lineSpacing));
   display.print(now.year(), DEC);
-  display.print("/");
+  display.print(F("/"));
   OledDisplayPrintTwoDigits(now.month());
-  display.print("/");
+  display.print(F("/"));
   OledDisplayPrintTwoDigits(now.day());
-  display.print(" ");
+  display.print(F(" "));
   OledDisplayPrintTwoDigits(now.hour());
-  display.print(":");
+  display.print(F(":"));
   OledDisplayPrintTwoDigits(now.minute());
   display.display();
   delay(2000/DELAY_DIVISOR);
 
-  Serial.println("Tuning Parameters");
-  Serial.print(" Kp = ");
+  Serial.println(F("Tuning Parameters"));
+  Serial.print(F(" Kp = "));
   Serial.println(Kp);
-  Serial.print(" Ki = ");
+  Serial.print(F(" Ki = "));
   Serial.println(Ki);
-  Serial.print(" Kd = ");
+  Serial.print(F(" Kd = "));
   Serial.println(Kd);
-  Serial.print(" Prop on ");
+  Serial.print(F(" Prop on "));
   if (POn == P_ON_E)
-    Serial.println("Error");
+    Serial.println(F("Error"));
   else
-    Serial.println("Measure"); 
+    Serial.println(F("Measure")); 
 
   displayFrame();
   display.setCursor(xOffset, yOffset+(0*lineSpacing));
-  display.print("Tuning Parameters");
+  display.print(F("Tuning Parameters"));
   display.setCursor(xOffset, yOffset+(1*lineSpacing));
-  display.print(" Kp = ");
+  display.print(F(" Kp = "));
   display.print(Kp);
   display.setCursor(xOffset, yOffset+(2*lineSpacing));
-  display.print(" Ki = ");
+  display.print(F(" Ki = "));
   display.print(Ki);
   display.setCursor(xOffset, yOffset+(3*lineSpacing));
-  display.print(" Kd = ");
+  display.print(F(" Kd = "));
   display.print(Kd);
   display.setCursor(xOffset, yOffset+(4*lineSpacing));
-  display.print(" Prop on ");
+  display.print(F(" Prop on "));
   if (POn == P_ON_E)
-    display.print("Error");
+    display.print(F("Error"));
   else
-    display.print("Measure"); 
+    display.print(F("Measure")); 
   display.display();
   delay(2000/DELAY_DIVISOR);
 
-  Serial.println("Offsets");
+  Serial.println(F("Offsets"));
   for (int i=0; i<4; i++)
   {
-    Serial.print(" Offset");
+    Serial.print(F(" Offset"));
     Serial.print(i+1);
-    Serial.print(" = ");
+    Serial.print(F(" = "));
     Serial.println(offsetTemp[i]);
   }
 
   displayFrame();
   display.setCursor(xOffset, yOffset+(0*lineSpacing));
-  display.print("Offsets");
+  display.print(F("Offsets"));
   for (int i=0; i<4; i++)
   {  
     display.setCursor(xOffset, yOffset+((i+1)*lineSpacing));
-    display.print(" Offset");
+    display.print(F(" Offset"));
     display.print(i+1);
-    display.print(" = ");
+    display.print(F(" = "));
     display.print(offsetTemp[i]);
   }
   display.display();
   delay(2000/DELAY_DIVISOR);
 
-  Serial.println("MinPcts");
+  Serial.println(F("MinPcts"));
   for (int i=0; i<4; i++)
   {
-    Serial.print(" MinPcts");
+    Serial.print(F(" MinPcts"));
     Serial.print(i+1);
-    Serial.print(" = ");
+    Serial.print(F(" = "));
     Serial.println((MinPctDutyCycle[i]*100)/255);
   }
 
   displayFrame();
   display.setCursor(xOffset, yOffset+(0*lineSpacing));
-  display.print("MinPcts");
+  display.print(F("MinPcts"));
   for (int i=0; i<4; i++)
   {  
     display.setCursor(xOffset, yOffset+((i+1)*lineSpacing));
-    display.print(" MinPcts");
+    display.print(F(" MinPcts"));
     display.print(i+1);
-    display.print(" = ");
+    display.print(F(" = "));
     display.print((MinPctDutyCycle[i]*100)/255);
   }
   display.display();
   delay(2000/DELAY_DIVISOR);
 
-  Serial.println("MaxPcts");
+  Serial.println(F("MaxPcts"));
   for (int i=0; i<4; i++)
   {
-    Serial.print(" MaxPcts");
+    Serial.print(F(" MaxPcts"));
     Serial.print(i+1);
-    Serial.print(" = ");
+    Serial.print(F(" = "));
     Serial.println((MaxPctDutyCycle[i]*100)/255);
   }
 
   displayFrame();
   display.setCursor(xOffset, yOffset+(0*lineSpacing));
-  display.print("MaxPcts");
+  display.print(F("MaxPcts"));
   for (int i=0; i<4; i++)
   {  
     display.setCursor(xOffset, yOffset+((i+1)*lineSpacing));
-    display.print(" MaxPcts");
+    display.print(F(" MaxPcts"));
     display.print(i+1);
-    display.print(" = ");
+    display.print(F(" = "));
     display.print((MaxPctDutyCycle[i]*100)/255);
   }
   display.display();
@@ -513,7 +514,7 @@ TCCR0B = TCCR0B & B11111000 | B00000101;    // set timer 0 divisor to  1024 for 
 
   displayRun();
 
-  Serial.println("Min and Max Limits");
+  Serial.println(F("Min and Max Limits"));
 
   //turn the PID on
   for (int i=0; i<4; i++)
@@ -521,13 +522,13 @@ TCCR0B = TCCR0B & B11111000 | B00000101;    // set timer 0 divisor to  1024 for 
     //initialize the variables we're linked to
 
     Serial.print(i+1);
-    Serial.print(" ");
-    Serial.print(" MinLimit");
-    Serial.print(" = ");
+    Serial.print(F(" "));
+    Serial.print(F(" MinLimit"));
+    Serial.print(F(" = "));
     Serial.print(MinPctDutyCycle[i]);
-    Serial.print(" ");
-    Serial.print(" MaxLimit");
-    Serial.print(" = ");
+    Serial.print(F(" "));
+    Serial.print(F(" MaxLimit"));
+    Serial.print(F(" = "));
     Serial.println(MaxPctDutyCycle[i]);
     
     Input[i] = 31.0;
@@ -548,13 +549,13 @@ void displayRun()
   }  
 
   display.setCursor(xOffset, yOffset+0);     
-  display.print("# Temp  SetPt");
+  display.print(F("# Temp  SetPt"));
  
   for (int i=1; i<5; i++)
   {
     display.setCursor(xOffset, yOffset+(i*lineSpacing));
     display.print(i);
-    display.print("       ");
+    display.print(F("       "));
     display.print(Setpoint[i-1]);
   }
   display.display();  
@@ -594,7 +595,7 @@ void loop()
         break;
       }
 
-//Serial.print(timeCurrent); Serial.print(" "); Serial.print(timeLastPID); Serial.print(" "); Serial.print(timeCurrent-timeLastPID); Serial.print(" "); Serial.println(DELAY_BETWEEN_UPDATES); 
+//Serial.print(timeCurrent); Serial.print(F(" ")); Serial.print(timeLastPID); Serial.print(F(" ")); Serial.print(timeCurrent-timeLastPID); Serial.print(F(" ")); Serial.println(DELAY_BETWEEN_UPDATES); 
       if ((timeCurrent - timeLastPID) < DELAY_BETWEEN_UPDATES)
       {
         char separator;
@@ -637,7 +638,7 @@ void loop()
         // Update the Setpoint from the table
         int index = (currentHour*10) + ((currentMin*10)/60);
         Setpoint[i] = double(Setpoints_Thousandths[i][index]) / 1000.0;
-        //Serial.print("Setpoint: ");
+        //Serial.print(F("Setpoint: "));
         //Serial.println(Setpoint[i],3);
 
         if (Setpoint[i] != prevSetpoint[i])
@@ -651,27 +652,27 @@ void loop()
         
         uint16_t rtd = max[i].readRTD();
       
-      //  Serial.print("RTD value: "); Serial.println(rtd);
+      //  Serial.print(F("RTD value: ")); Serial.println(rtd);
         float ratio = rtd;
         ratio /= 32768;
-      //  Serial.print("Ratio = "); Serial.println(ratio,8);
-      //  Serial.print("Resistance = "); Serial.println(RREF*ratio,8);
+      //  Serial.print(F("Ratio = ")); Serial.println(ratio,8);
+      //  Serial.print(F("Resistance = ")); Serial.println(RREF*ratio,8);
     
         Serial.print(now.year(), DEC);
-        Serial.print("/");
+        Serial.print(F("/"));
         Serial.print(now.month(), DEC);
-        Serial.print("/");
+        Serial.print(F("/"));
         Serial.print(now.day(), DEC);
-        Serial.print(" ");
-        if (now.hour() < 10) Serial.print("0");
+        Serial.print(F(" "));
+        if (now.hour() < 10) Serial.print(F("0"));
         Serial.print(now.hour(), DEC);
-        Serial.print(":");
-        if (now.minute() < 10) Serial.print("0");
+        Serial.print(F(":"));
+        if (now.minute() < 10) Serial.print(F("0"));
         Serial.print(now.minute(), DEC);
-        Serial.print(":");
-        if (now.second() < 10) Serial.print("0");
+        Serial.print(F(":"));
+        if (now.second() < 10) Serial.print(F("0"));
         Serial.print(now.second(), DEC);
-        Serial.print(" ");
+        Serial.print(F(" "));
 
         temp[i] = max[i].temperature(RNOMINAL, RREF);
 
@@ -681,38 +682,38 @@ void loop()
         fault[i] = max[i].readFault();
         if (fault[i]) 
         {
-          Serial.print(i+1); Serial.print(" Fault 0x"); Serial.print(fault[i], HEX);
+          Serial.print(i+1); Serial.print(F(" Fault 0x")); Serial.print(fault[i], HEX);
           if (fault[i] & MAX31865_FAULT_HIGHTHRESH) {
-            Serial.println(" RTD High Threshold"); 
+            Serial.println(F(" RTD High Threshold")); 
           }
           if (fault[i] & MAX31865_FAULT_LOWTHRESH) {
-            Serial.println(" RTD Low Threshold"); 
+            Serial.println(F(" RTD Low Threshold")); 
           }
           if (fault[i] & MAX31865_FAULT_REFINLOW) {
-            Serial.println(" REFIN- > 0.85 x Bias"); 
+            Serial.println(F(" REFIN- > 0.85 x Bias")); 
           }
           if (fault[i] & MAX31865_FAULT_REFINHIGH) {
-            Serial.println(" REFIN- < 0.85 x Bias - FORCE- open"); 
+            Serial.println(F(" REFIN- < 0.85 x Bias - FORCE- open")); 
           }
           if (fault[i] & MAX31865_FAULT_RTDINLOW) {
-            Serial.println(" RTDIN- < 0.85 x Bias - FORCE- open"); 
+            Serial.println(F(" RTDIN- < 0.85 x Bias - FORCE- open")); 
           }
           if (fault[i] & MAX31865_FAULT_OVUV) {
-            Serial.println(" Under/Over voltage"); 
+            Serial.println(F(" Under/Over voltage")); 
           }
           max[i].clearFault();
         }
         else
         if ((temp[i] < MINIMUM_VALID_TEMP) || (temp[i] > MAXIMUM_VALID_TEMP))
         {
-          Serial.print(i+1); Serial.print( " Temp = "); Serial.print(temp[i]); 
-          Serial.println(" INVALID");
+          Serial.print(i+1); Serial.print(F(" Temp = ")); Serial.print(temp[i]); 
+          Serial.println(F(" INVALID"));
         }
         else
         {          
-          Serial.print(i+1); Serial.print( " Temp = "); Serial.print(temp[i]); 
-          Serial.print(", Delta = "); Serial.print(temp[i] - Setpoint[i]);      
-          Serial.print(", Offset = "); Serial.print(offsetTemp[i]);      
+          Serial.print(i+1); Serial.print(F(" Temp = ")); Serial.print(temp[i]); 
+          Serial.print(F(", Delta = ")); Serial.print(temp[i] - Setpoint[i]);      
+          Serial.print(F(", Offset = ")); Serial.print(offsetTemp[i]);      
         }
 
         if (fault[i]  || (temp[i] < MINIMUM_VALID_TEMP) || (temp[i] > MAXIMUM_VALID_TEMP))
@@ -724,7 +725,7 @@ void loop()
 
             display.fillRect(xOffset+(2*(5+1)), yOffset+((i+1)*lineSpacing),5*(5+1),8,BLACK);
             display.setCursor(xOffset+(2*(5+1)), yOffset+((i+1)*lineSpacing));
-            display.print("FAULT");
+            display.print(F("FAULT"));
     
             display.fillRect(xOffset+(14*(5+1)), yOffset+((i+1)*lineSpacing),5*(5+1),8,BLACK);
             display.setCursor(xOffset+(14*(5+1)), yOffset+((i+1)*lineSpacing));
@@ -801,10 +802,10 @@ void loop()
             
           }
 
-          Serial.print(", Setpoint = "); Serial.print(Setpoint[i]); 
+          Serial.print(F(", Setpoint = ")); Serial.print(Setpoint[i]); 
           double DutyCycle = (Output[i]/255.0)*100;
-          Serial.print(", DutyCycle = "); Serial.print(DutyCycle); Serial.print("%");
-          Serial.print(", "); 
+          Serial.print(F(", DutyCycle = ")); Serial.print(DutyCycle); Serial.print(F("%"));
+          Serial.print(F(", ")); 
           Serial.println(strHeatingOrCooling); 
 
           if ((timeCurrent - timeLastLog) >= DELAY_BETWEEN_LOGGING)
@@ -840,7 +841,7 @@ void loop()
     case STATE_SP_WAIT:
       displayFrame();
       display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     
-      display.print("SP ");
+      display.print(F("SP "));
       display.print(currentSetpoint+1);
       display.display();  
       if (menuButton == HIGH)
@@ -850,7 +851,7 @@ void loop()
     case STATE_SP:
       displayFrame();
       display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     
-      display.print("SP ");
+      display.print(F("SP "));
       display.print(currentSetpoint+1);
       display.display();  
       if (menuButton == LOW)
@@ -897,7 +898,7 @@ void loop()
         
       displayFrame();
       display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     
-      display.print("SP ");
+      display.print(F("SP "));
       display.print(currentSetpoint+1);
       display.setCursor(xOffset+(2*(5+1)), yOffset+(2*lineSpacing));     
       display.print(SetpointNew);
@@ -922,7 +923,7 @@ void loop()
       }
       displayFrame();
       display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     
-      display.print("SP ");
+      display.print(F("SP "));
       display.print(currentSetpoint+1);
       display.setCursor(xOffset+(2*(5+1)), yOffset+(2*lineSpacing));     
       display.print(SetpointNew);
@@ -947,7 +948,7 @@ void loop()
       }
       displayFrame();
       display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     
-      display.print("SP ");
+      display.print(F("SP "));
       display.print(currentSetpoint+1);
       display.setCursor(xOffset+(2*(5+1)), yOffset+(2*lineSpacing));     
       display.print(SetpointNew);
@@ -957,15 +958,15 @@ void loop()
     case STATE_SP_UPDATE_WAIT:
       displayFrame();
       display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     
-      display.print("SP ");
+      display.print(F("SP "));
       display.print(currentSetpoint+1);
       display.setCursor(xOffset+(2*(5+1)), yOffset+(2*lineSpacing));     
-      display.print("StRd");
+      display.print(F("StRd"));
       display.display();  
       if (enterButton == HIGH)
       {
-        Serial.println("Updating setpoint table.");
-        Serial.print("currentSetpoint = "); Serial.println(currentSetpoint);
+        Serial.println(F("Updating setpoint table."));
+        Serial.print(F("currentSetpoint = ")); Serial.println(currentSetpoint);
         for (int iSetpoint=0; iSetpoint<240; iSetpoint++)
         {
           Setpoints_Thousandths[currentSetpoint][iSetpoint] = (unsigned int) (SetpointNew*1000.0);
@@ -983,14 +984,14 @@ void loop()
     case STATE_CFG_WAIT:
       displayFrame();
       display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     // Start at top-left corner
-      display.print("CNFG");    
+      display.print(F("CNFG"));    
       if (menuButton == HIGH)
         currentState = STATE_CFG;
       break;
     
     case STATE_CFG:
       display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     // Start at top-left corner
-      display.print("CNFG");    
+      display.print(F("CNFG"));    
       if (menuButton == LOW)
         currentState = STATE_RUN_WAIT;
       else
@@ -1001,7 +1002,7 @@ void loop()
     case STATE_RUN_WAIT:
       displayFrame();
       display.setCursor(xOffset+(2*(5+1)), yOffset+(1*lineSpacing));     // Start at top-left corner
-      display.print("RUN");    
+      display.print(F("RUN"));    
       if (menuButton == HIGH)
       {
         currentState = STATE_RUN;
@@ -1034,19 +1035,19 @@ void SetupSDCardOperations()
 {   
   displayFrame();
   display.setCursor(xOffset, yOffset+(1*lineSpacing));
-  display.print("*** STATUS ***  ");
+  display.print(F("*** STATUS ***  "));
   display.setCursor(xOffset, yOffset+(2*lineSpacing));
-  display.print("SD Init Start   ");
+  display.print(F("SD Init Start   "));
   display.display();
 
   if (!SD.begin(chipSelectSDCard)) {
     displayFrame();
     display.setCursor(xOffset, yOffset+(1*lineSpacing));
-    display.print("*** ERROR ***   ");
+    display.print(F("*** ERROR ***   "));
     display.setCursor(xOffset, yOffset+(2*lineSpacing));
-    display.print("SD Init Failed  ");
+    display.print(F("SD Init Failed  "));
     display.setCursor(xOffset, yOffset+(3*lineSpacing));
-    display.print("System HALTED!");
+    display.print(F("System HALTED!"));
     display.display();
     while (1);
   }
@@ -1055,11 +1056,11 @@ void SetupSDCardOperations()
   
   displayFrame();
   display.setCursor(xOffset, yOffset+(1*lineSpacing));
-  display.print("* Test CLOCK.CSV");
+  display.print(F("* Test CLOCK.CSV"));
   display.setCursor(xOffset, yOffset+(2*lineSpacing));
   if (SD.exists("CLOCK.CSV")) 
   {
-    //display.print("  Set Clock     ");
+    //display.print(F("  Set Clock     "));
 
     fileSDCard = SD.open("CLOCK.CSV");
     if (fileSDCard) 
@@ -1078,7 +1079,7 @@ void SetupSDCardOperations()
         {
             *ptr1++ = '\0';
         }
-        Serial.println("Set Clock:");
+        Serial.println(F("Set Clock:"));
         Serial.println(strClockSetting);
 
         ptr3 = strchr(ptr1,'\n');
@@ -1124,7 +1125,7 @@ void SetupSDCardOperations()
         }
 
         //display.setCursor(xOffset, yOffset+(2*lineSpacing));
-        display.print("* processed *");
+        display.print(F("* processed *"));
         display.display();
         delay(2000/DELAY_DIVISOR);     
       }
@@ -1137,7 +1138,7 @@ void SetupSDCardOperations()
   }
   else 
   {
-    display.print("* does not exist");
+    display.print(F("* does not exist"));
     display.display();
   }
   delay(2000/DELAY_DIVISOR);
@@ -1145,7 +1146,7 @@ void SetupSDCardOperations()
 // TEST.CSV Processing
   displayFrame();
   display.setCursor(xOffset, yOffset+(1*lineSpacing));
-  display.print("* Test TEST.CSV");
+  display.print(F("* Test TEST.CSV"));
   display.setCursor(xOffset, yOffset+(2*lineSpacing));
   if (SD.exists("TEST.CSV")) 
   {
@@ -1158,17 +1159,17 @@ void SetupSDCardOperations()
         
         displayFrame();
         display.setCursor(xOffset, yOffset+(1*lineSpacing));
-        display.print("* TEST System");
+        display.print(F("* TEST System"));
         display.setCursor(xOffset, yOffset+(3*lineSpacing));
-        display.print("* processed *");
+        display.print(F("* processed *"));
         display.display();
         delay(2000/DELAY_DIVISOR);   
 
         displayFrame();
         display.setCursor(xOffset, yOffset+(1*lineSpacing));
-        display.print("* Test TEST.CSV");
+        display.print(F("* Test TEST.CSV"));
         display.setCursor(xOffset, yOffset+(3*lineSpacing));
-        display.print("System HALTED!");
+        display.print(F("System HALTED!"));
         display.display();
         while (1);
       }
@@ -1180,7 +1181,7 @@ void SetupSDCardOperations()
   }
   else 
   {
-    display.print("* does not exist");
+    display.print(F("* does not exist"));
     display.display();
   }
   delay(2000/DELAY_DIVISOR);
@@ -1188,7 +1189,7 @@ void SetupSDCardOperations()
 // CONTROL.CSV Processing
   displayFrame();
   display.setCursor(xOffset, yOffset+(1*lineSpacing));
-  display.print("* Test CONTROL.CSV");
+  display.print(F("* Test CONTROL.CSV"));
   display.setCursor(xOffset, yOffset+(2*lineSpacing));
   if (SD.exists("CONTROL.CSV")) 
   {
@@ -1209,7 +1210,7 @@ void SetupSDCardOperations()
         {
             *ptr1++ = '\0';
         }
-        Serial.println("Set Control:");
+        Serial.println(F("Set Control:"));
         Serial.println(strControlSetting);
 
         ptr3 = strchr(ptr1,'\n');
@@ -1242,7 +1243,7 @@ void SetupSDCardOperations()
         Kd = iControl[2];
         POn = iControl[3];
         
-        display.print("* processed *");
+        display.print(F("* processed *"));
         display.display();
         delay(2000/DELAY_DIVISOR);      
       }
@@ -1254,7 +1255,7 @@ void SetupSDCardOperations()
   }
   else 
   {
-    display.print("* does not exist");
+    display.print(F("* does not exist"));
     display.display();
   }
   delay(2000/DELAY_DIVISOR);
@@ -1264,7 +1265,7 @@ void SetupSDCardOperations()
 // OFFSETS.CSV Processing
   displayFrame();
   display.setCursor(xOffset, yOffset+(1*lineSpacing));
-  display.print("* Test OFFSETS.CSV");
+  display.print(F("* Test OFFSETS.CSV"));
   display.setCursor(xOffset, yOffset+(2*lineSpacing));
   if (SD.exists("OFFSETS.CSV")) 
   {
@@ -1285,7 +1286,7 @@ void SetupSDCardOperations()
         {
             *ptr1++ = '\0';
         }
-        Serial.println("Set Offsets:");
+        Serial.println(F("Set Offsets:"));
         Serial.println(strOffsets);
 
         ptr3 = strchr(ptr1,'\n');
@@ -1313,7 +1314,7 @@ void SetupSDCardOperations()
             break;
           }
         }
-        display.print("* processed *");
+        display.print(F("* processed *"));
         display.display();
         delay(2000/DELAY_DIVISOR);      
       }
@@ -1325,7 +1326,7 @@ void SetupSDCardOperations()
   }
   else 
   {
-    display.print("* does not exist");
+    display.print(F("* does not exist"));
     display.display();
   }
   delay(2000/DELAY_DIVISOR);
@@ -1336,7 +1337,7 @@ void SetupSDCardOperations()
 // MINPCTS.CSV Processing
   displayFrame();
   display.setCursor(xOffset, yOffset+(1*lineSpacing));
-  display.print("* Test MINPCTS.CSV");
+  display.print(F("* Test MINPCTS.CSV"));
   display.setCursor(xOffset, yOffset+(2*lineSpacing));
   if (SD.exists("MINPCTS.CSV")) 
   {
@@ -1357,7 +1358,7 @@ void SetupSDCardOperations()
         {
             *ptr1++ = '\0';
         }
-        Serial.println("Set Min Pcts:");
+        Serial.println(F("Set Min Pcts:"));
         Serial.println(strVal);
 
         ptr3 = strchr(ptr1,'\n');
@@ -1387,7 +1388,7 @@ void SetupSDCardOperations()
             break;
           }
         }
-        display.print("* processed *");
+        display.print(F("* processed *"));
         display.display();
         delay(2000/DELAY_DIVISOR);      
       }
@@ -1399,7 +1400,7 @@ void SetupSDCardOperations()
   }
   else 
   {
-    display.print("* does not exist");
+    display.print(F("* does not exist"));
     display.display();
   }
   delay(2000/DELAY_DIVISOR);
@@ -1409,7 +1410,7 @@ void SetupSDCardOperations()
 // MAXPCTS.CSV Processing
   displayFrame();
   display.setCursor(xOffset, yOffset+(1*lineSpacing));
-  display.print("* Test MAXPCTS.CSV");
+  display.print(F("* Test MAXPCTS.CSV"));
   display.setCursor(xOffset, yOffset+(2*lineSpacing));
   if (SD.exists("MAXPCTS.CSV")) 
   {
@@ -1430,7 +1431,7 @@ void SetupSDCardOperations()
         {
             *ptr1++ = '\0';
         }
-        Serial.println("Set Max Pcts:");
+        Serial.println(F("Set Max Pcts:"));
         Serial.println(strVal);
 
         ptr3 = strchr(ptr1,'\n');
@@ -1460,7 +1461,7 @@ void SetupSDCardOperations()
             break;
           }
         }
-        display.print("* processed *");
+        display.print(F("* processed *"));
         display.display();
         delay(2000/DELAY_DIVISOR);      
       }
@@ -1472,7 +1473,7 @@ void SetupSDCardOperations()
   }
   else 
   {
-    display.print("* does not exist");
+    display.print(F("* does not exist"));
     display.display();
   }
   delay(2000/DELAY_DIVISOR);
@@ -1487,7 +1488,7 @@ void SetupSDCardOperations()
     szSETPNTx[6] = '0'+iUnit;
     displayFrame();
     display.setCursor(xOffset, yOffset+(1*lineSpacing));
-    display.print("* Test ");
+    display.print(F("* Test "));
     display.print(szSETPNTx);
     display.setCursor(xOffset, yOffset+(2*lineSpacing));
     if (SD.exists(szSETPNTx)) 
@@ -1507,7 +1508,7 @@ void SetupSDCardOperations()
           int index = (currentHour*10) + ((currentMin*10)/60);
           Setpoint[iUnit-1] = double(Setpoints_Thousandths[iUnit-1][index]) / 1000.0;
                        
-          display.print("* processed *");
+          display.print(F("* processed *"));
           display.display();
           delay(2000/DELAY_DIVISOR);      
         }
@@ -1519,7 +1520,7 @@ void SetupSDCardOperations()
     }
     else 
     {
-      display.print("* does not exist");
+      display.print(F("* does not exist"));
       display.display();
     }
     delay(2000/DELAY_DIVISOR);
@@ -1547,9 +1548,9 @@ void SetupSDCardOperations()
     {
       displayFrame();
       display.setCursor(xOffset, yOffset+(1*lineSpacing));
-      display.print("*** ERROR ***   ");
+      display.print(F("*** ERROR ***   "));
       display.setCursor(xOffset, yOffset+(2*lineSpacing));
-      display.print("SD Write Failed ");
+      display.print(F("SD Write Failed "));
       display.display();
       while (1);
     }
@@ -1558,9 +1559,9 @@ void SetupSDCardOperations()
 
   displayFrame();
   display.setCursor(xOffset, yOffset+(1*lineSpacing));
-  display.print("*** STATUS ***  ");
+  display.print(F("*** STATUS ***  "));
   display.setCursor(xOffset, yOffset+(2*lineSpacing));
-  display.print("SD Init Finish  ");
+  display.print(F("SD Init Finish  "));
   display.display();
   delay(2000/DELAY_DIVISOR);
   
@@ -1577,7 +1578,7 @@ void SDLogging(char *szUnit, double setpoint, double temp, double delta, double 
     if ((iToggle & B00000001) == 0)
     {
       display.setCursor(xOffset, yOffset+(2*lineSpacing));
-      display.print("SD LogFail");
+      display.print(F("SD LogFail"));
     }
 #endif
     return;
@@ -1629,9 +1630,9 @@ void SDLogging(char *szUnit, double setpoint, double temp, double delta, double 
       // if the file didn't open, display an error:
       displayFrame();
       display.setCursor(xOffset, yOffset+(1*lineSpacing));
-      display.print("*** ERROR ***   ");
+      display.print(F("*** ERROR ***   "));
       display.setCursor(xOffset, yOffset+(2*lineSpacing));
-      display.print("Open LOGGING.CSV");
+      display.print(F("Open LOGGING.CSV"));
       display.display();
       delay(2000/DELAY_DIVISOR);
     }  
@@ -1641,7 +1642,7 @@ void SDLogging(char *szUnit, double setpoint, double temp, double delta, double 
 void OledDisplayPrintTwoDigits(int iVal)
 {
   if (iVal < 10)
-    display.print("0");
+    display.print(F("0"));
   display.print(iVal, DEC);
 }
 
@@ -1688,15 +1689,15 @@ void ReadSetpoints(unsigned int* Setpoints_Thousandths)
     index = (iHour*10) + ((iMinute*10)/60);
     Setpoints_Thousandths[index] = iThousandths; 
 #if 0
-    Serial.print("Hr: ");
+    Serial.print(F("Hr: "));
     Serial.print(iHour);
-    Serial.print(" Mn: ");
+    Serial.print(F(" Mn: "));
     Serial.print(iMinute);
-    Serial.print(" Temp: ");
+    Serial.print(F(" Temp: "));
     Serial.print(temp,3);
-    Serial.print(" iThousandths: ");
+    Serial.print(F(" iThousandths: "));
     Serial.print(iThousandths);
-    Serial.print(" Index: ");
+    Serial.print(F(" Index: "));
     Serial.println(index);
 #endif
   }
@@ -1733,21 +1734,21 @@ void DoTests()
   }
   
   while (readTest(&iUnit, &cHeatOrCool, &iSeconds)) {
-    Serial.print("Unit: ");
+    Serial.print(F("Unit: "));
     Serial.print(iUnit);
     Serial.print(cHeatOrCool);
-    Serial.print(" Seconds: ");
+    Serial.print(F(" Seconds: "));
     Serial.println(iSeconds);
 
     displayFrame();
     display.setCursor(xOffset, yOffset+(1*lineSpacing));
-    display.print("* TEST System");
+    display.print(F("* TEST System"));
     display.setCursor(xOffset, yOffset+(2*lineSpacing));
-    display.print("Unit: ");
+    display.print(F("Unit: "));
     display.print(iUnit);
     display.print(cHeatOrCool);
     display.setCursor(xOffset, yOffset+(3*lineSpacing));
-    display.print("Secs: ");
+    display.print(F("Secs: "));
     display.print(iSeconds);
     display.display();
 
@@ -1879,6 +1880,12 @@ bool seekNextLineStart(size_t maxLen) {
 
 void FileTransfer(void)
 {
+#if 1  
+  char cEncodedBuffer[1024 + 64];
+  char *cDecodedBuffer = cEncodedBuffer;
+  //char cDecodedBuffer[1024 + 64];
+  char *pLogging = &cEncodedBuffer[0];
+#endif
   
   if (Serial1.available() > 0)
   {
@@ -1889,11 +1896,11 @@ void FileTransfer(void)
     iLen = Serial1.readBytesUntil('\r', cEncodedBuffer, sizeof(cEncodedBuffer) - 1);
     cEncodedBuffer[iLen] = '\0';
 #if DEBUGGING
-    Serial.print("Input len = ");
+    Serial.print(F("Input len = "));
     Serial.println(iLen);
-    Serial.print("[");
+    Serial.print(F("["));
     Serial.print(cEncodedBuffer);
-    Serial.println("]");
+    Serial.println(F("]"));
 #endif
     char *ptr = strstr(cEncodedBuffer, "&d=");
     if (ptr == 0)
@@ -1901,7 +1908,7 @@ void FileTransfer(void)
     if (ptr == 0)
     {
 #if DEBUGGING
-      Serial.println("INVALID BUFFFER");
+      Serial.println(F("INVALID BUFFFER"));
 #endif      
       return;
     }
@@ -1929,14 +1936,14 @@ void FileTransfer(void)
             iLen = strlen(&pData[3]);
 
 #if DEBUGGING
-            Serial.print("Filename: [");
+            Serial.print(F("Filename: ["));
             Serial.print(&pFilename[8]);
-            Serial.println("]");
-            Serial.print("Offset: ");
+            Serial.println(F("]"));
+            Serial.print(F("Offset: "));
             Serial.println(iOffset);
-            Serial.print("Size: ");
+            Serial.print(F("Size: "));
             Serial.println(atoi(&pSize[3]));
-            Serial.print("Encoded len = ");
+            Serial.print(F("Encoded len = "));
             Serial.println(iLen);
 #endif      
 
@@ -1944,12 +1951,12 @@ void FileTransfer(void)
 
             iLen = strlen(cDecodedBuffer);
 #if DEBUGGING
-            Serial.print("Decoded len = ");
+            Serial.print(F("Decoded len = "));
             Serial.println(iLen);
-            Serial.print("[");
+            Serial.print(F("["));
             Serial.print(cDecodedBuffer);
-            Serial.println("]");
-            Serial.println("Data: ");
+            Serial.println(F("]"));
+            Serial.println(F("Data: "));
             Serial.println(cDecodedBuffer);
 #endif      
 
@@ -1962,19 +1969,19 @@ void FileTransfer(void)
               if (pFiletype != 0)
                 strcpy(pFiletype, ".BAK");
 #if DEBUGGING
-              Serial.print("sFilename: ");
+              Serial.print(F("sFilename: "));
               Serial.println(sFilename);
 #endif      
               if (SD.exists(sFilename))
               {
 #if DEBUGGING
-                Serial.println("SD.remove(sFilename)");
+                Serial.println(F("SD.remove(sFilename)"));
 #endif      
                 SD.remove(sFilename);
               }
 
 #if DEBUGGING
-              Serial.print("SD.open ");
+              Serial.print(F("SD.open "));
               Serial.println(&pFilename[8]);
 #endif      
 
@@ -1983,20 +1990,20 @@ void FileTransfer(void)
               {
                 iLen = fileSDCard.size();
 #if DEBUGGING
-                Serial.print("iLen to copy: ");
+                Serial.print(F("iLen to copy: "));
                 Serial.println(iLen);
 #endif      
                 char *buffer = malloc(iLen);
                 if (buffer == 0)
                 {
 #if DEBUGGING
-                  Serial.println("MALLOC FAILED!");
+                  Serial.println(F("MALLOC FAILED!"));
 #endif      
                 }
                 else
                 {
 #if DEBUGGING
-                  Serial.println("fileSDCard.read");
+                  Serial.println(F("fileSDCard.read"));
 #endif      
                   fileSDCard.read(buffer, iLen);
                   fileSDCard.close();
@@ -2005,7 +2012,7 @@ void FileTransfer(void)
                   if (fileSDCard)
                   {
 #if DEBUGGING
-                    Serial.println("fileSDCard.write");
+                    Serial.println(F("fileSDCard.write"));
 #endif      
                     fileSDCard.write(buffer, iLen);
                     fileSDCard.close();
@@ -2014,13 +2021,13 @@ void FileTransfer(void)
                 }
               }
 #if DEBUGGING
-              Serial.println("SD.remove(&pFilename[8])");
+              Serial.println(F("SD.remove(&pFilename[8])"));
 #endif      
               SD.remove(&pFilename[8]);
             }
 
 #if DEBUGGING
-            Serial.print("SD.open ");
+            Serial.print(F("SD.open "));
             Serial.println(&pFilename[8]);
 #endif      
             fileSDCard = SD.open(&pFilename[8], FILE_WRITE);
@@ -2028,11 +2035,11 @@ void FileTransfer(void)
             {
               iLen = strlen(cDecodedBuffer);
 #if DEBUGGING
-              Serial.print("fileSDCard.write ");
+              Serial.print(F("fileSDCard.write "));
               Serial.println(&pFilename[8]);
-              Serial.print("buffer: ");
+              Serial.print(F("buffer: "));
               Serial.println(&pData[3]);
-              Serial.print("len: ");
+              Serial.print(F("len: "));
               Serial.println(iLen);
 #endif      
               fileSDCard.write(cDecodedBuffer, iLen);
@@ -2045,9 +2052,9 @@ void FileTransfer(void)
     else
     {
 #if DEBUGGING
-    Serial.print("[");
+    Serial.print(F("["));
     Serial.print(cEncodedBuffer);
-    Serial.println("]");
+    Serial.println(F("]"));
 #endif      
       char *pHour = strstr(cEncodedBuffer, "GET /?h=");
       if (pHour == 0)
@@ -2071,9 +2078,9 @@ void FileTransfer(void)
       strcpy(sDateHour, pHour);
 
 #if DEBUGGING
-      Serial.print("Hour = [");
+      Serial.print(F("Hour = ["));
       Serial.print(sDateHour);
-      Serial.println("]");
+      Serial.println(F("]"));
 #endif      
       int iHourLen = strlen(sDateHour);
 
@@ -2110,10 +2117,10 @@ xxxx/xx/xx,xx:
       
       iHourLen = strlen(sDateHour);
 #if DEBUGGING
-      Serial.print("Hour = [");
+      Serial.print(F("Hour = ["));
       Serial.print(sDateHour);
-      Serial.println("]");
-      Serial.print("iHourLen = ");
+      Serial.println(F("]"));
+      Serial.print(F("iHourLen = "));
       Serial.println(iHourLen);
 #endif      
 
@@ -2122,14 +2129,14 @@ xxxx/xx/xx,xx:
 
       // open logging.csv and match hour
 #if DEBUGGING
-      Serial.println("SD.open LOGGING.CSV");
+      Serial.println(F("SD.open LOGGING.CSV"));
 #endif      
       fileSDCard = SD.open("LOGGING.CSV", FILE_READ);
       if (fileSDCard)
       {
         long lFileSize = fileSDCard.size();
 #if DEBUGGING
-        Serial.print("Size = ");
+        Serial.print(F("Size = "));
         Serial.println(lFileSize);
 #endif      
 
@@ -2140,7 +2147,7 @@ xxxx/xx/xx,xx:
         while (lFirst <= lLast)
         {
 #if DEBUGGING
-          Serial.print("Seek = ");
+          Serial.print(F("Seek = "));
           Serial.println(lMiddle);
 #endif      
           fileSDCard.seek(lMiddle);
@@ -2184,7 +2191,7 @@ xxxx/xx/xx,xx:
             lMiddle -= 16000;
 
 #if DEBUGGING
-        Serial.print("lMiddle = ");
+        Serial.print(F("lMiddle = "));
         Serial.println(lMiddle);    
 #endif      
         fileSDCard.seek(lMiddle);        
@@ -2216,7 +2223,7 @@ xxxx/xx/xx,xx:
           }
         }
 #if DEBUGGING
-        Serial.print("\n");
+        Serial.print(F("\n"));
 #endif      
       }
       else
