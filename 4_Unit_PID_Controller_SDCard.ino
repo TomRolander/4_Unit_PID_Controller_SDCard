@@ -154,10 +154,12 @@ File fileSDCard;
 
 #if 0
 char cEncodedBuffer[1024 + 64];
-//char *cDecodedBuffer = cEncodedBuffer;
-char cDecodedBuffer[1024 + 64];
+char *cDecodedBuffer = cEncodedBuffer;
+//char cDecodedBuffer[1024 + 64];
 char *pLogging = &cEncodedBuffer[0];
 #endif
+
+static int bFileUploading = false;
 
 bool bSDLogFail = false;
 int  iToggle = 0;
@@ -240,7 +242,8 @@ void setup()
   Serial.println(VERSION);
   Serial.println(F("Serial Initialized..."));
 
-  Serial1.begin(19200);
+  Serial1.begin(9600);
+//  Serial1.setTimeout(10000);
 
 #if 0
   for (int i=0; i< 4; i++)
@@ -564,6 +567,8 @@ void displayRun()
 void loop() 
 {  
   FileTransfer();
+  if (bFileUploading)
+    return;
   
   now = rtc.now();
   int currentHour = now.hour();
@@ -1040,7 +1045,10 @@ void SetupSDCardOperations()
   display.print(F("SD Init Start   "));
   display.display();
 
+Serial.println(F("SD.begin(chipSelectSDCard)"));
+
   if (!SD.begin(chipSelectSDCard)) {
+Serial.println(F("*** FAILED ***"));
     displayFrame();
     display.setCursor(xOffset, yOffset+(1*lineSpacing));
     display.print(F("*** ERROR ***   "));
@@ -1051,6 +1059,8 @@ void SetupSDCardOperations()
     display.display();
     while (1);
   }
+Serial.println(F("*** SUCCESS ***"));
+
   delay(2000/DELAY_DIVISOR);
 
   
@@ -1880,29 +1890,51 @@ bool seekNextLineStart(size_t maxLen) {
 
 void FileTransfer(void)
 {
-#if 1  
-  char cEncodedBuffer[1024 + 64];
-  char *cDecodedBuffer = cEncodedBuffer;
-  //char cDecodedBuffer[1024 + 64];
-  char *pLogging = &cEncodedBuffer[0];
+#if 1
+char cEncodedBuffer[1024 + 64];
+char *cDecodedBuffer = cEncodedBuffer;
+//char cDecodedBuffer[1024 + 64];
+char *pLogging = &cEncodedBuffer[0];
 #endif
-  
+
   if (Serial1.available() > 0)
-  {
-//return;
-
+  {    
     int iLen;
-
     iLen = Serial1.readBytesUntil('\r', cEncodedBuffer, sizeof(cEncodedBuffer) - 1);
     cEncodedBuffer[iLen] = '\0';
-#if DEBUGGING
+#if 1
     Serial.print(F("Input len = "));
     Serial.println(iLen);
     Serial.print(F("["));
+    char cSave = cEncodedBuffer[40];
+    cEncodedBuffer[40] = '\0';
     Serial.print(cEncodedBuffer);
+    cEncodedBuffer[40] = cSave;    
     Serial.println(F("]"));
 #endif
-    char *ptr = strstr(cEncodedBuffer, "&d=");
+
+    char *ptr;
+#if 1
+    ptr = strstr(cEncodedBuffer, "?BOF");
+    if (ptr != 0)
+    {
+      Serial.println(F("BOF"));
+      Serial1.print("1");  
+      bFileUploading = true;
+      return;
+    }
+
+    ptr = strstr(cEncodedBuffer, "?EOF");
+    if (ptr != 0)
+    {
+      Serial.println(F("EOF"));
+      Serial1.print("1");  
+      bFileUploading = false;
+      return;
+    }
+#endif
+    
+    ptr = strstr(cEncodedBuffer, "&d=");
     if (ptr == 0)
       ptr = strstr(cEncodedBuffer, "?h=");
     if (ptr == 0)
@@ -1918,6 +1950,9 @@ void FileTransfer(void)
     char *pFilename = strstr(cEncodedBuffer, "GET /?f=");
     if (pFilename != 0)
     {
+      char sFilename[16] = "";
+      char sFilenameBak[16] = "";
+      
       char *pOffset = strstr(pFilename, "&o=");
       if (pOffset != 0)
       {
@@ -1928,21 +1963,30 @@ void FileTransfer(void)
           if (pData != 0)
           {
             // Eureka !
+            //bFileUploading = true;
+
             pOffset[0] = '\0';
             pSize[0] = '\0';
             int iOffset = atoi(&pOffset[3]);
             pData[0] = '\0';
+            int iSize = atoi(&pSize[3]);
 
             iLen = strlen(&pData[3]);
 
+            strcpy(sFilename, &pFilename[8]);
+            strcpy(sFilenameBak, &pFilename[8]);
+            char *pFiletype = strstr(sFilenameBak, ".");
+            if (pFiletype != 0)
+              strcpy(pFiletype, ".BAK");
+            
 #if DEBUGGING
             Serial.print(F("Filename: ["));
-            Serial.print(&pFilename[8]);
+            Serial.print(sFilename);
             Serial.println(F("]"));
             Serial.print(F("Offset: "));
             Serial.println(iOffset);
             Serial.print(F("Size: "));
-            Serial.println(atoi(&pSize[3]));
+            Serial.println(iSize);
             Serial.print(F("Encoded len = "));
             Serial.println(iLen);
 #endif      
@@ -1950,42 +1994,44 @@ void FileTransfer(void)
             url_decode(cDecodedBuffer, &pData[3]);
 
             iLen = strlen(cDecodedBuffer);
-#if DEBUGGING
+#if 1
             Serial.print(F("Decoded len = "));
             Serial.println(iLen);
+#endif            
+#if DEBUGGING
             Serial.print(F("["));
+            char cSave = cDecodedBuffer[40];
+            cDecodedBuffer[40] = '\0';
             Serial.print(cDecodedBuffer);
+            cDecodedBuffer[40] = cSave;
             Serial.println(F("]"));
-            Serial.println(F("Data: "));
-            Serial.println(cDecodedBuffer);
+            //Serial.println(F("Data: "));
+            //Serial.println(cDecodedBuffer);
 #endif      
-
-            char sFilename[80] = "";
 
             if (iOffset == 0)
             {
-              strcpy(sFilename, &pFilename[8]);
-              char *pFiletype = strstr(sFilename, ".");
-              if (pFiletype != 0)
-                strcpy(pFiletype, ".BAK");
 #if DEBUGGING
-              Serial.print(F("sFilename: "));
-              Serial.println(sFilename);
+              Serial.print(F("sFilenameBak: "));
+              Serial.println(sFilenameBak);
 #endif      
-              if (SD.exists(sFilename))
+              if (SD.exists(sFilenameBak))
               {
 #if DEBUGGING
-                Serial.println(F("SD.remove(sFilename)"));
+                Serial.print(F("SD.remove(sFilenameBak) = "));
 #endif      
-                SD.remove(sFilename);
+                int iRet = SD.remove(sFilenameBak);
+#if DEBUGGING
+                Serial.println(iRet);
+#endif
               }
 
 #if DEBUGGING
               Serial.print(F("SD.open "));
-              Serial.println(&pFilename[8]);
+              Serial.println(sFilename);
 #endif      
 
-              fileSDCard = SD.open(&pFilename[8]);
+              fileSDCard = SD.open(sFilename);
               if (fileSDCard)
               {
                 iLen = fileSDCard.size();
@@ -2008,7 +2054,7 @@ void FileTransfer(void)
                   fileSDCard.read(buffer, iLen);
                   fileSDCard.close();
 
-                  fileSDCard = SD.open(sFilename, FILE_WRITE);
+                  fileSDCard = SD.open(sFilenameBak, FILE_WRITE);
                   if (fileSDCard)
                   {
 #if DEBUGGING
@@ -2019,26 +2065,32 @@ void FileTransfer(void)
                   }
                   free(buffer);
                 }
-              }
 #if DEBUGGING
-              Serial.println(F("SD.remove(&pFilename[8])"));
+                Serial.print(F("SD.remove(sFilename) = "));
 #endif      
-              SD.remove(&pFilename[8]);
+                int iRet = SD.remove(sFilename);               
+#if DEBUGGING
+                Serial.println(iRet);
+#endif
+              }
             }
 
 #if DEBUGGING
-            Serial.print(F("SD.open "));
-            Serial.println(&pFilename[8]);
+            Serial.print(F("SD.open FILE_WRITE "));
+            Serial.println(sFilename);
 #endif      
-            fileSDCard = SD.open(&pFilename[8], FILE_WRITE);
+            fileSDCard = SD.open(sFilename, FILE_WRITE);
             if (fileSDCard)
             {
               iLen = strlen(cDecodedBuffer);
 #if DEBUGGING
               Serial.print(F("fileSDCard.write "));
-              Serial.println(&pFilename[8]);
+              Serial.println(sFilename);
               Serial.print(F("buffer: "));
-              Serial.println(&pData[3]);
+              char cSave = cDecodedBuffer[40];
+              cDecodedBuffer[40] = '\0';
+              Serial.print(cDecodedBuffer);
+              cDecodedBuffer[40] = cSave;
               Serial.print(F("len: "));
               Serial.println(iLen);
 #endif      
@@ -2234,6 +2286,7 @@ xxxx/xx/xx,xx:
     }
 
     Serial1.print("1");
+
   }
 
 }
