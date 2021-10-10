@@ -160,6 +160,8 @@ char *pLogging = &cEncodedBuffer[0];
 #endif
 
 static int bFileUploading = false;
+static char sFilename[16] = "";
+static char sFilenameBak[16] = "";
 
 bool bSDLogFail = false;
 int  iToggle = 0;
@@ -1063,7 +1065,6 @@ Serial.println(F("*** SUCCESS ***"));
 
   delay(2000/DELAY_DIVISOR);
 
-  
   displayFrame();
   display.setCursor(xOffset, yOffset+(1*lineSpacing));
   display.print(F("* Test CLOCK.CSV"));
@@ -1949,10 +1950,7 @@ char *pLogging = &cEncodedBuffer[0];
 
     char *pFilename = strstr(cEncodedBuffer, "GET /?f=");
     if (pFilename != 0)
-    {
-      char sFilename[16] = "";
-      char sFilenameBak[16] = "";
-      
+    {      
       char *pOffset = strstr(pFilename, "&o=");
       if (pOffset != 0)
       {
