@@ -12,7 +12,7 @@
 
  **************************************************************************/
 
-#define VERSION "Ver 0.9 2021-10-10"
+#define VERSION "Ver 0.9 2021-10-11"
 
 #define DEBUGGING 1
 
@@ -1937,6 +1937,15 @@ char sFilenameBak[13] = "";
       Serial.println(F("EOF"));
       Serial1.print("1");  
       bFileUploading = false;
+      return;
+    }
+
+    ptr = strstr(cEncodedBuffer, "?RESET");
+    if (ptr != 0)
+    {
+      Serial.println(F("RESET"));
+      Serial1.print("1");  
+      resetFunc();
       return;
     }
 #endif
