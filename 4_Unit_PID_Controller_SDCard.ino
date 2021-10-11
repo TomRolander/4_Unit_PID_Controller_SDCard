@@ -12,7 +12,7 @@
 
  **************************************************************************/
 
-#define VERSION "Ver 0.9 2021-10-07"
+#define VERSION "Ver 0.9 2021-10-10"
 
 #define DEBUGGING 1
 
@@ -32,6 +32,8 @@ int iCoolUpdates[4] = {0,0,0,0};
 
 unsigned long timeLastPID = 0;
 unsigned long timeLastLog = 0;
+
+//#include <MemoryFree.h>
 
 #include <PID_v1.h>
 
@@ -160,8 +162,8 @@ char *pLogging = &cEncodedBuffer[0];
 #endif
 
 static int bFileUploading = false;
-static char sFilename[16] = "";
-static char sFilenameBak[16] = "";
+//static char sFilename[16] = "";
+//static char sFilenameBak[16] = "";
 
 bool bSDLogFail = false;
 int  iToggle = 0;
@@ -244,7 +246,7 @@ void setup()
   Serial.println(VERSION);
   Serial.println(F("Serial Initialized..."));
 
-  Serial1.begin(9600);
+  Serial1.begin(19200);
 //  Serial1.setTimeout(10000);
 
 #if 0
@@ -1891,15 +1893,19 @@ bool seekNextLineStart(size_t maxLen) {
 
 void FileTransfer(void)
 {
-#if 1
-char cEncodedBuffer[1024 + 64];
-char *cDecodedBuffer = cEncodedBuffer;
-//char cDecodedBuffer[1024 + 64];
-char *pLogging = &cEncodedBuffer[0];
-#endif
-
   if (Serial1.available() > 0)
   {    
+#if 1
+//char *cEncodedBuffer = malloc(256);
+char cEncodedBuffer[1024 + 64];
+char *cDecodedBuffer = cEncodedBuffer;
+//char cDecodedBuffer[256 + 64];
+char *pLogging = &cEncodedBuffer[0];
+
+char sFilename[13] = "";
+char sFilenameBak[13] = "";
+
+#endif
     int iLen;
     iLen = Serial1.readBytesUntil('\r', cEncodedBuffer, sizeof(cEncodedBuffer) - 1);
     cEncodedBuffer[iLen] = '\0';
@@ -1950,7 +1956,23 @@ char *pLogging = &cEncodedBuffer[0];
 
     char *pFilename = strstr(cEncodedBuffer, "GET /?f=");
     if (pFilename != 0)
-    {      
+    {
+Serial.println(F("SD.begin(chipSelectSDCard)"));
+
+  if (!SD.begin(chipSelectSDCard)) {
+Serial.println(F("*** FAILED ***"));
+    displayFrame();
+    display.setCursor(xOffset, yOffset+(1*lineSpacing));
+    display.print(F("*** ERROR ***   "));
+    display.setCursor(xOffset, yOffset+(2*lineSpacing));
+    display.print(F("SD Init Failed  "));
+    display.setCursor(xOffset, yOffset+(3*lineSpacing));
+    display.print(F("System HALTED!"));
+    display.display();
+    while (1);
+  }
+Serial.println(F("*** SUCCESS ***"));
+            
       char *pOffset = strstr(pFilename, "&o=");
       if (pOffset != 0)
       {
@@ -2036,11 +2058,14 @@ char *pLogging = &cEncodedBuffer[0];
 #if DEBUGGING
                 Serial.print(F("iLen to copy: "));
                 Serial.println(iLen);
+                //Serial.print(F("freeMemory()="));
+                //Serial.println(freeMemory());
 #endif      
                 char *buffer = malloc(iLen);
                 if (buffer == 0)
                 {
 #if DEBUGGING
+
                   Serial.println(F("MALLOC FAILED!"));
 #endif      
                 }
@@ -2098,6 +2123,7 @@ char *pLogging = &cEncodedBuffer[0];
           }
         }
       }
+      SD.end();
     }
     else
     {
