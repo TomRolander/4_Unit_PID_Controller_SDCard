@@ -471,7 +471,7 @@ TCCR0B = TCCR0B & B11111000 | B00000101;    // set timer 0 divisor to  1024 for 
     display.print(offsetTemp[i]);
   }
   display.display();
-  delay(2000/DELAY_DIVISOR);
+  delay(10000/DELAY_DIVISOR);
 
   Serial.println(F("MinPcts"));
   for (int i=0; i<4; i++)
